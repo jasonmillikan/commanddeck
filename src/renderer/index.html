@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CommandDeck</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Custom title bar -->
+  <div class="titlebar">
+    <div class="titlebar-left">
+      <div class="titlebar-logo">⬡</div>
+      <span class="titlebar-name">CommandDeck</span>
+      <span class="titlebar-version">v0.1.0</span>
+    </div>
+    <div class="titlebar-drag"></div>
+    <div class="titlebar-controls">
+      <button class="tb-btn" id="btn-open-logs" title="Open log directory">⌂</button>
+      <button class="tb-btn" id="btn-export" title="Export config">↑</button>
+      <button class="tb-btn" id="btn-import" title="Import config">↓</button>
+      <button class="tb-btn" id="btn-minimize" title="Minimize">−</button>
+      <button class="tb-btn tb-btn-close" id="btn-hide" title="Hide to tray">×</button>
+    </div>
+  </div>
+
+  <!-- Main layout -->
+  <div class="app">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <button class="add-btn" id="btn-add">
+        <span class="add-btn-icon">+</span>
+        <span>New Command</span>
+      </button>
+      <div class="sidebar-section-label">GROUPS</div>
+      <div id="group-list" class="group-list">
+        <div class="group-item active" data-group="all">All Commands</div>
+      </div>
+      <div class="sidebar-footer">
+        <div class="stat" id="stat-running">0 running</div>
+        <div class="stat" id="stat-total">0 total</div>
+      </div>
+    </aside>
+
+    <!-- Command board -->
+    <main class="board">
+      <div class="board-header">
+        <input class="search-box" id="search-box" placeholder="Filter commands…" />
+      </div>
+      <div class="cards" id="cards-container">
+        <!-- Cards injected by JS -->
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal: Add/Edit Command -->
+  <div class="modal-backdrop" id="modal-backdrop">
+    <div class="modal" id="modal">
+      <div class="modal-header">
+        <span id="modal-title">New Command</span>
+        <button class="modal-close" id="modal-close">×</button>
+      </div>
+      <div class="modal-body">
+        <label>Label <span class="required">*</span>
+          <input type="text" id="f-label" placeholder="e.g. Steam" />
+        </label>
+        <label>Note / Description
+          <input type="text" id="f-note" placeholder="What does this do?" />
+        </label>
+        <label>Type <span class="required">*</span>
+          <select id="f-type">
+            <option value="toggle">Toggle (ON/OFF commands)</option>
+            <option value="launcher">Launcher (fire &amp; forget)</option>
+            <option value="foreground">Foreground (runs in managed terminal)</option>
+          </select>
+        </label>
+        <div id="f-on-row">
+          <label id="f-on-label">ON Command <span class="required">*</span>
+            <input type="text" id="f-on" placeholder="e.g. pactl load-module module-loopback latency_msec=1" />
+          </label>
+        </div>
+        <div id="f-off-row">
+          <label>OFF Command <span class="required">*</span>
+            <input type="text" id="f-off" placeholder="e.g. pactl unload-module module-loopback" />
+          </label>
+        </div>
+        <label>Group / Tag
+          <input type="text" id="f-group" placeholder="e.g. Audio, Gaming, Sync…" />
+        </label>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" id="modal-cancel">Cancel</button>
+        <button class="btn-primary" id="modal-save">Save Command</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Output drawer -->
+  <div class="drawer" id="output-drawer">
+    <div class="drawer-header">
+      <span id="drawer-title">Output</span>
+      <div class="drawer-actions">
+        <button class="tb-btn" id="drawer-open-log">Open log file</button>
+        <button class="tb-btn" id="drawer-close">×</button>
+      </div>
+    </div>
+    <pre class="drawer-output" id="drawer-output"></pre>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

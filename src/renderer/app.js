@@ -1,0 +1,448 @@
+// ─── State ────────────────────────────────────────────────────────────────────
+let config = { commands: [] };
+// commandId → { pid, startedAt, logFile }[]
+let liveMap = {};
+// commandId → latest output lines[]
+let outputMap = {};
+let activeGroup = 'all';
+let searchQuery = '';
+let editingId = null;
+let drawerCommandId = null;
+let drawerLogFile = null;
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
+function formatTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+function commandIsRunning(id) {
+  return (liveMap[id] || []).length > 0;
+}
+
+function getFirstPid(id) {
+  return (liveMap[id] || [])[0]?.pid;
+}
+
+function getStartedAt(id) {
+  return (liveMap[id] || [])[0]?.startedAt;
+}
+
+function getLogFile(id) {
+  return (liveMap[id] || [])[0]?.logFile;
+}
+
+// ─── Config persistence ───────────────────────────────────────────────────────
+async function loadAll() {
+  config = await window.api.loadConfig();
+  liveMap = await window.api.getLiveProcesses();
+  renderAll();
+}
+
+async function persist() {
+  await window.api.saveConfig(config);
+}
+
+// ─── Group list ───────────────────────────────────────────────────────────────
+function renderGroups() {
+  const groups = ['all', ...new Set(config.commands.map(c => c.group).filter(Boolean))];
+  const el = document.getElementById('group-list');
+  el.innerHTML = groups.map(g => `
+    <div class="group-item ${activeGroup === g ? 'active' : ''}" data-group="${g}">
+      ${g === 'all' ? 'All Commands' : g}
+    </div>
+  `).join('');
+  el.querySelectorAll('.group-item').forEach(item => {
+    item.addEventListener('click', () => {
+      activeGroup = item.dataset.group;
+      renderAll();
+    });
+  });
+}
+
+// ─── Cards ────────────────────────────────────────────────────────────────────
+function filteredCommands() {
+  return config.commands.filter(cmd => {
+    const groupOk = activeGroup === 'all' || cmd.group === activeGroup;
+    const q = searchQuery.toLowerCase();
+    const searchOk = !q ||
+      cmd.label.toLowerCase().includes(q) ||
+      (cmd.note || '').toLowerCase().includes(q) ||
+      (cmd.onCmd || '').toLowerCase().includes(q);
+    return groupOk && searchOk;
+  });
+}
+
+function badgeFor(type) {
+  const map = { toggle: 'badge-toggle', launcher: 'badge-launcher', foreground: 'badge-foreground' };
+  const labels = { toggle: 'TOGGLE', launcher: 'LAUNCHER', foreground: 'FOREGROUND' };
+  return `<span class="card-type-badge ${map[type]}">${labels[type]}</span>`;
+}
+
+function renderCard(cmd) {
+  const running = commandIsRunning(cmd.id);
+  const pid = getFirstPid(cmd.id);
+  const startedAt = getStartedAt(cmd.id);
+  const displayCmd = running && cmd.type === 'toggle'
+    ? (cmd.offCmd || cmd.onCmd)
+    : (cmd.onCmd || cmd.launchCmd || '');
+
+  const metaHtml = running ? `
+    <div class="card-meta">
+      <div class="meta-dot live"></div>
+      ${pid ? `<span class="meta-pid">PID ${pid}</span>` : ''}
+      ${startedAt ? `<span class="meta-time">since ${formatTime(startedAt)}</span>` : ''}
+    </div>
+  ` : `<div class="card-meta"><div class="meta-dot"></div><span>idle</span></div>`;
+
+  // Bottom action buttons vary by type and state
+  let actionsHtml = '';
+  if (cmd.type === 'toggle') {
+    actionsHtml = `
+      <button class="card-btn card-btn-log"    data-action="log"    data-id="${cmd.id}">LOG</button>
+      <button class="card-btn card-btn-edit"   data-action="edit"   data-id="${cmd.id}">EDIT</button>
+      <button class="card-btn card-btn-delete" data-action="delete" data-id="${cmd.id}">DEL</button>
+    `;
+  } else if (cmd.type === 'launcher') {
+    actionsHtml = `
+      ${running ? `<button class="card-btn card-btn-kill" data-action="kill" data-id="${cmd.id}">KILL</button>` : ''}
+      <button class="card-btn card-btn-log"    data-action="log"    data-id="${cmd.id}">LOG</button>
+      <button class="card-btn card-btn-edit"   data-action="edit"   data-id="${cmd.id}">EDIT</button>
+      <button class="card-btn card-btn-delete" data-action="delete" data-id="${cmd.id}">DEL</button>
+    `;
+  } else { // foreground
+    actionsHtml = `
+      ${running ? `<button class="card-btn card-btn-kill" data-action="kill" data-id="${cmd.id}">KILL</button>` : ''}
+      <button class="card-btn card-btn-log"    data-action="log"    data-id="${cmd.id}">LOG</button>
+      <button class="card-btn card-btn-edit"   data-action="edit"   data-id="${cmd.id}">EDIT</button>
+      <button class="card-btn card-btn-delete" data-action="delete" data-id="${cmd.id}">DEL</button>
+    `;
+  }
+
+  // Toggle switch for toggle-type; Launch button for others
+  let controlHtml = '';
+  if (cmd.type === 'toggle') {
+    controlHtml = `
+      <div class="toggle-wrap">
+        <span class="toggle-label">${running ? 'ON' : 'OFF'}</span>
+        <label class="toggle">
+          <input type="checkbox" data-action="toggle" data-id="${cmd.id}" ${running ? 'checked' : ''} />
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    `;
+  } else {
+    const btnLabel = cmd.type === 'launcher' ? 'LAUNCH' : 'START';
+    controlHtml = running
+      ? `<div class="toggle-wrap"><span class="toggle-label" style="color:var(--accent)">● RUNNING</span></div>`
+      : `<div class="toggle-wrap">
+           <button class="card-btn card-btn-start" data-action="start" data-id="${cmd.id}" style="border:none;text-align:left;flex:none;padding:4px 0">${btnLabel}</button>
+         </div>`;
+  }
+
+  return `
+    <div class="card ${running ? 'running' : ''}" data-id="${cmd.id}">
+      <div class="card-header">
+        <div class="card-info">
+          <div class="card-label">${escHtml(cmd.label)}</div>
+          ${cmd.note ? `<div class="card-note">${escHtml(cmd.note)}</div>` : ''}
+        </div>
+        ${badgeFor(cmd.type)}
+      </div>
+      <div class="card-cmd" title="${escHtml(displayCmd)}">${escHtml(displayCmd)}</div>
+      ${metaHtml}
+      ${controlHtml}
+      <div class="card-actions">${actionsHtml}</div>
+    </div>
+  `;
+}
+
+function escHtml(s) {
+  return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function renderCards() {
+  const container = document.getElementById('cards-container');
+  const cmds = filteredCommands();
+  if (cmds.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">⬡</div>
+        <div class="empty-state-text">${config.commands.length === 0 ? 'No commands yet' : 'No matches'}</div>
+        <div class="empty-state-hint">${config.commands.length === 0 ? 'Click "+ New Command" to get started' : 'Try a different search or group'}</div>
+      </div>`;
+    return;
+  }
+  container.innerHTML = cmds.map(renderCard).join('');
+  attachCardListeners();
+}
+
+function renderStats() {
+  const running = Object.values(liveMap).filter(arr => arr.length > 0).length;
+  document.getElementById('stat-running').textContent = `${running} running`;
+  document.getElementById('stat-total').textContent = `${config.commands.length} total`;
+}
+
+function renderAll() {
+  renderGroups();
+  renderCards();
+  renderStats();
+}
+
+// ─── Card event delegation ────────────────────────────────────────────────────
+function attachCardListeners() {
+  document.getElementById('cards-container').addEventListener('click', handleCardClick, { once: true });
+  document.getElementById('cards-container').addEventListener('change', handleCardChange, { once: true });
+}
+
+function handleCardClick(e) {
+  const btn = e.target.closest('[data-action]');
+  if (!btn) { attachCardListeners(); return; }
+  const action = btn.dataset.action;
+  const id = btn.dataset.id;
+  if (action !== 'toggle') handleCardAction(action, id);
+  // re-attach after handling
+  setTimeout(attachCardListeners, 0);
+}
+
+function handleCardChange(e) {
+  const input = e.target.closest('[data-action="toggle"]');
+  if (input) handleCardAction('toggle', input.dataset.id, input.checked);
+  setTimeout(attachCardListeners, 0);
+}
+
+async function handleCardAction(action, id, checked) {
+  const cmd = config.commands.find(c => c.id === id);
+  if (!cmd) return;
+
+  if (action === 'toggle') {
+    if (checked) {
+      await startCommand(cmd);
+    } else {
+      await stopCommand(cmd);
+    }
+  } else if (action === 'start') {
+    await startCommand(cmd);
+  } else if (action === 'kill') {
+    const pid = getFirstPid(id);
+    if (pid) {
+      await window.api.killProcess(pid);
+      liveMap[id] = [];
+      renderAll();
+    }
+  } else if (action === 'log') {
+    openDrawer(cmd);
+  } else if (action === 'edit') {
+    openModal(cmd);
+  } else if (action === 'delete') {
+    if (confirm(`Delete "${cmd.label}"?`)) {
+      config.commands = config.commands.filter(c => c.id !== id);
+      await persist();
+      renderAll();
+    }
+  }
+}
+
+// ─── Command execution ────────────────────────────────────────────────────────
+async function startCommand(cmd) {
+  let cmdString, type;
+  if (cmd.type === 'toggle') {
+    cmdString = cmd.onCmd;
+    type = 'toggle-on';
+  } else if (cmd.type === 'launcher') {
+    cmdString = cmd.launchCmd;
+    type = 'launcher';
+  } else {
+    cmdString = cmd.onCmd;
+    type = 'foreground';
+  }
+  const result = await window.api.runCommand({ commandId: cmd.id, label: cmd.label, cmdString, type });
+  if (result.ok) {
+    if (!liveMap[cmd.id]) liveMap[cmd.id] = [];
+    if (result.pid) {
+      liveMap[cmd.id] = [{ pid: result.pid, startedAt: result.startedAt, logFile: result.logFile }];
+    }
+    // For toggle-on (one-shot), mark as "active" with no PID
+    if (type === 'toggle-on') {
+      liveMap[cmd.id] = [{ pid: null, startedAt: new Date().toISOString(), logFile: result.logFile }];
+    }
+  }
+  renderAll();
+}
+
+async function stopCommand(cmd) {
+  if (cmd.type === 'toggle' && cmd.offCmd) {
+    const result = await window.api.runCommand({
+      commandId: cmd.id,
+      label: cmd.label,
+      cmdString: cmd.offCmd,
+      type: 'toggle-off'
+    });
+    liveMap[cmd.id] = [];
+  } else {
+    const pid = getFirstPid(cmd.id);
+    if (pid) await window.api.killProcess(pid);
+    liveMap[cmd.id] = [];
+  }
+  renderAll();
+}
+
+// ─── Output drawer ────────────────────────────────────────────────────────────
+function openDrawer(cmd) {
+  drawerCommandId = cmd.id;
+  drawerLogFile = getLogFile(cmd.id);
+  document.getElementById('drawer-title').textContent = `▸ ${cmd.label}`;
+  const out = document.getElementById('drawer-output');
+  const lines = outputMap[cmd.id] || [];
+  out.textContent = lines.length ? lines.join('') : '(no output captured yet — start the command first)';
+  out.scrollTop = out.scrollHeight;
+  document.getElementById('output-drawer').classList.add('open');
+}
+
+document.getElementById('drawer-close').addEventListener('click', () => {
+  document.getElementById('output-drawer').classList.remove('open');
+});
+document.getElementById('drawer-open-log').addEventListener('click', async () => {
+  if (drawerLogFile) await window.api.openLog(drawerLogFile);
+});
+
+// ─── Modal ────────────────────────────────────────────────────────────────────
+function openModal(cmd = null) {
+  editingId = cmd?.id || null;
+  document.getElementById('modal-title').textContent = cmd ? 'Edit Command' : 'New Command';
+  document.getElementById('f-label').value = cmd?.label || '';
+  document.getElementById('f-note').value = cmd?.note || '';
+  document.getElementById('f-type').value = cmd?.type || 'toggle';
+  document.getElementById('f-on').value = cmd?.onCmd || cmd?.launchCmd || '';
+  document.getElementById('f-off').value = cmd?.offCmd || '';
+  document.getElementById('f-group').value = cmd?.group || '';
+  updateModalFields();
+  document.getElementById('modal-backdrop').classList.add('open');
+  document.getElementById('f-label').focus();
+}
+
+function updateModalFields() {
+  const type = document.getElementById('f-type').value;
+  const onLabel = document.getElementById('f-on-label');
+  const offRow = document.getElementById('f-off-row');
+  if (type === 'toggle') {
+    onLabel.firstChild.textContent = 'ON Command ';
+    offRow.style.display = '';
+  } else if (type === 'launcher') {
+    onLabel.firstChild.textContent = 'Launch Command ';
+    offRow.style.display = 'none';
+  } else {
+    onLabel.firstChild.textContent = 'Command ';
+    offRow.style.display = 'none';
+  }
+}
+
+document.getElementById('f-type').addEventListener('change', updateModalFields);
+
+function closeModal() {
+  document.getElementById('modal-backdrop').classList.remove('open');
+  editingId = null;
+}
+
+document.getElementById('modal-close').addEventListener('click', closeModal);
+document.getElementById('modal-cancel').addEventListener('click', closeModal);
+document.getElementById('modal-backdrop').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeModal();
+});
+
+document.getElementById('modal-save').addEventListener('click', async () => {
+  const label = document.getElementById('f-label').value.trim();
+  const type = document.getElementById('f-type').value;
+  const onCmd = document.getElementById('f-on').value.trim();
+  if (!label || !onCmd) { alert('Label and command are required.'); return; }
+
+  const entry = {
+    id: editingId || uid(),
+    label,
+    note: document.getElementById('f-note').value.trim(),
+    type,
+    group: document.getElementById('f-group').value.trim(),
+    ...(type === 'toggle'    ? { onCmd, offCmd: document.getElementById('f-off').value.trim() } : {}),
+    ...(type === 'launcher'  ? { launchCmd: onCmd } : {}),
+    ...(type === 'foreground'? { onCmd } : {}),
+  };
+
+  if (editingId) {
+    const idx = config.commands.findIndex(c => c.id === editingId);
+    if (idx !== -1) config.commands[idx] = entry;
+  } else {
+    config.commands.push(entry);
+  }
+  await persist();
+  closeModal();
+  renderAll();
+});
+
+// ─── Titlebar controls ────────────────────────────────────────────────────────
+document.getElementById('btn-add').addEventListener('click', () => openModal());
+document.getElementById('btn-minimize').addEventListener('click', () => window.api.minimize());
+document.getElementById('btn-hide').addEventListener('click', () => window.api.hide());
+document.getElementById('btn-open-logs').addEventListener('click', () => window.api.openLogDir());
+
+document.getElementById('btn-export').addEventListener('click', async () => {
+  const ts = new Date().toISOString().slice(0,10);
+  const filePath = `${window.require ? '' : '/tmp/'}commanddeck-export-${ts}.json`;
+  // Simple: prompt for path via a quick hack (full dialog needs dialog API — future work)
+  const path = prompt('Export to file path:', `~/commanddeck-export-${ts}.json`);
+  if (!path) return;
+  const expanded = path.replace('~', window.homeDir || '/tmp');
+  const result = await window.api.exportConfig(expanded);
+  if (result.ok) alert(`Exported to ${expanded}`);
+  else alert('Export failed: ' + result.error);
+});
+
+document.getElementById('btn-import').addEventListener('click', async () => {
+  const path = prompt('Import from file path:');
+  if (!path) return;
+  const expanded = path.replace('~', '/home/' + (window.username || 'user'));
+  const result = await window.api.importConfig(expanded);
+  if (result.ok) { config = result.data; renderAll(); }
+  else alert('Import failed: ' + result.error);
+});
+
+// ─── Search ───────────────────────────────────────────────────────────────────
+document.getElementById('search-box').addEventListener('input', e => {
+  searchQuery = e.target.value;
+  renderCards();
+});
+
+// ─── Events from main process ─────────────────────────────────────────────────
+window.api.onProcessExited(({ commandId, pid, code }) => {
+  if (liveMap[commandId]) {
+    liveMap[commandId] = liveMap[commandId].filter(p => p.pid !== pid);
+  }
+  renderAll();
+  // Append to output
+  if (!outputMap[commandId]) outputMap[commandId] = [];
+  outputMap[commandId].push(`\n[Process exited with code ${code}]\n`);
+  if (drawerCommandId === commandId) {
+    const out = document.getElementById('drawer-output');
+    out.textContent = outputMap[commandId].join('');
+    out.scrollTop = out.scrollHeight;
+  }
+});
+
+window.api.onProcessOutput(({ commandId, pid, text }) => {
+  if (!outputMap[commandId]) outputMap[commandId] = [];
+  outputMap[commandId].push(text);
+  // Cap at ~500 lines
+  if (outputMap[commandId].length > 500) outputMap[commandId] = outputMap[commandId].slice(-300);
+  if (drawerCommandId === commandId) {
+    const out = document.getElementById('drawer-output');
+    out.textContent = outputMap[commandId].join('');
+    out.scrollTop = out.scrollHeight;
+  }
+});
+
+// ─── Boot ─────────────────────────────────────────────────────────────────────
+loadAll();
