@@ -4,6 +4,20 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 
+const { buildTrayIcon, buildAppIcon } = require('./tray-icon');
+
+// null = no alert; 'red' = crash (non-zero exit); 'amber' = unexpected clean exit
+let alertState = null;
+
+// PIDs the user intentionally killed — checked in exit handlers to suppress false alerts.
+// Kept as a separate Set rather than a flag on liveProcesses entries because the
+// kill-process handler deletes the entry immediately (before the process actually exits),
+// so reading entry.userKilled inside the exit event would always see undefined.
+const killedByUser = new Set();
+
+// commandIds of toggle commands currently switched on (no live PID — toggle-on exits immediately)
+const activeToggles = new Set();
+
 // ─── Config file path ────────────────────────────────────────────────────────
 const CONFIG_PATH = path.join(os.homedir(), '.commanddeck', 'commands.json');
 const LOG_DIR = path.join(os.homedir(), '.commanddeck', 'logs');
@@ -51,7 +65,7 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
     },
-    icon: path.join(__dirname, '..', 'assets', 'icon.png'),
+    icon: buildAppIcon(),
     show: false,
   });
 
@@ -64,19 +78,16 @@ function createWindow() {
     e.preventDefault();
     mainWindow.hide();
   });
+
+  mainWindow.on('show', () => {
+    alertState = null;
+    updateTrayIcon();
+  });
 }
 
 function createTray() {
   // Inline SVG-based tray icon (fallback to empty image if no asset)
-  let icon;
-  const iconPath = path.join(__dirname, '..', 'assets', 'tray-icon.png');
-  if (fs.existsSync(iconPath)) {
-    icon = nativeImage.createFromPath(iconPath);
-  } else {
-    icon = nativeImage.createEmpty();
-  }
-
-  tray = new Tray(icon);
+  tray = new Tray(nativeImage.createEmpty()); // updateTrayIcon() sets the real icon immediately after
   tray.setToolTip('CommandDeck');
 
   const contextMenu = Menu.buildFromTemplate([
@@ -106,12 +117,18 @@ function createTray() {
 }
 
 function killAllProcesses() {
-  for (const [pid, entry] of liveProcesses.entries()) {
+  for (const [pid] of liveProcesses.entries()) {
     try {
       process.kill(pid, 'SIGTERM');
     } catch {}
   }
   liveProcesses.clear();
+}
+
+function updateTrayIcon() {
+  if (!tray) return;
+  const running = liveProcesses.size + activeToggles.size;
+  tray.setImage(buildTrayIcon(running, alertState));
 }
 
 // ─── Process helpers ─────────────────────────────────────────────────────────
@@ -146,9 +163,16 @@ function spawnCommand(commandId, label, cmdString, type) {
     child.unref(); // let it run independently
     // For launchers we watch if the child exits quickly (indicating failure)
     child.on('exit', (code) => {
+      const wasUserKilled = killedByUser.has(child.pid);
+      killedByUser.delete(child.pid);
       logLine(logFile, `Exited with code ${code}`);
       liveProcesses.delete(child.pid);
       mainWindow?.webContents.send('process-exited', { commandId, pid: child.pid, code });
+      if (!wasUserKilled) {
+        if (code !== 0) alertState = 'red';
+        else if (alertState !== 'red') alertState = 'amber';
+      }
+      updateTrayIcon();
     });
   } else {
     // Foreground: stream stdout/stderr to log and to renderer
@@ -163,9 +187,18 @@ function spawnCommand(commandId, label, cmdString, type) {
       mainWindow?.webContents.send('process-output', { commandId, pid: child.pid, text });
     });
     child.on('exit', (code) => {
+      const wasUserKilled = killedByUser.has(child.pid);
+      killedByUser.delete(child.pid);
       logLine(logFile, `Exited with code ${code}`);
       liveProcesses.delete(child.pid);
       mainWindow?.webContents.send('process-exited', { commandId, pid: child.pid, code });
+      // toggle-on commands are intentionally one-shot — don't alert on their exit
+      if (!wasUserKilled && type !== 'toggle-on') {
+        if (code !== 0) alertState = 'red';
+        else if (alertState !== 'red') alertState = 'amber';
+      }
+      if (type === 'toggle-on' && code === 0) activeToggles.add(commandId);
+      updateTrayIcon();
     });
   }
 
@@ -201,12 +234,17 @@ ipcMain.handle('get-live-processes', () => {
 ipcMain.handle('run-command', async (_, { commandId, label, cmdString, type }) => {
   if (type === 'toggle-on' || type === 'launcher' || type === 'foreground') {
     const result = spawnCommand(commandId, label, cmdString, type);
+    updateTrayIcon();
     return { ok: true, ...result };
   }
   if (type === 'toggle-off') {
     const ts = Date.now();
     const logFile = path.join(LOG_DIR, `${commandId}-${ts}.log`);
     const result = await runOneShot(cmdString, logFile);
+    if (result.ok) {
+      activeToggles.delete(commandId);
+      updateTrayIcon();
+    }
     return { ok: result.ok, logFile };
   }
   return { ok: false, error: 'Unknown type' };
@@ -214,10 +252,13 @@ ipcMain.handle('run-command', async (_, { commandId, label, cmdString, type }) =
 
 ipcMain.handle('kill-process', (_, { pid }) => {
   try {
+    killedByUser.add(pid);
     process.kill(pid, 'SIGTERM');
     liveProcesses.delete(pid);
+    updateTrayIcon();
     return { ok: true };
   } catch (e) {
+    killedByUser.delete(pid);
     return { ok: false, error: e.message };
   }
 });
@@ -261,6 +302,7 @@ app.whenReady().then(() => {
   ensureConfigDir();
   createWindow();
   createTray();
+  updateTrayIcon(); // set idle state immediately (liveProcesses is empty on fresh start)
 });
 
 app.on('window-all-closed', (e) => {
