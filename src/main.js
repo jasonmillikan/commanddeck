@@ -75,19 +75,16 @@ function createWindow() {
     e.preventDefault();
     mainWindow.hide();
   });
+
+  mainWindow.on('show', () => {
+    alertState = null;
+    updateTrayIcon();
+  });
 }
 
 function createTray() {
   // Inline SVG-based tray icon (fallback to empty image if no asset)
-  let icon;
-  const iconPath = path.join(__dirname, '..', 'assets', 'tray-icon.png');
-  if (fs.existsSync(iconPath)) {
-    icon = nativeImage.createFromPath(iconPath);
-  } else {
-    icon = nativeImage.createEmpty();
-  }
-
-  tray = new Tray(icon);
+  tray = new Tray(nativeImage.createEmpty()); // updateTrayIcon() sets the real icon immediately after
   tray.setToolTip('CommandDeck');
 
   const contextMenu = Menu.buildFromTemplate([
@@ -123,6 +120,12 @@ function killAllProcesses() {
     } catch {}
   }
   liveProcesses.clear();
+}
+
+function updateTrayIcon() {
+  if (!tray) return;
+  const running = liveProcesses.size;
+  tray.setImage(buildTrayIcon(running, alertState));
 }
 
 // ─── Process helpers ─────────────────────────────────────────────────────────
@@ -227,6 +230,7 @@ ipcMain.handle('get-live-processes', () => {
 ipcMain.handle('run-command', async (_, { commandId, label, cmdString, type }) => {
   if (type === 'toggle-on' || type === 'launcher' || type === 'foreground') {
     const result = spawnCommand(commandId, label, cmdString, type);
+    updateTrayIcon();
     return { ok: true, ...result };
   }
   if (type === 'toggle-off') {
@@ -290,6 +294,7 @@ app.whenReady().then(() => {
   ensureConfigDir();
   createWindow();
   createTray();
+  updateTrayIcon(); // set idle state immediately (liveProcesses is empty on fresh start)
 });
 
 app.on('window-all-closed', (e) => {
