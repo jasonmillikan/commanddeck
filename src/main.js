@@ -246,6 +246,7 @@ ipcMain.handle('kill-process', (_, { pid }) => {
     updateTrayIcon();
     return { ok: true };
   } catch (e) {
+    killedByUser.delete(pid);
     return { ok: false, error: e.message };
   }
 });
