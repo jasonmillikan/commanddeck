@@ -170,7 +170,7 @@ function buildAppIcon() {
     if (i < 2) {
       fillRoundRect(buf, size, x, y, w, h, r, RGBA.active);
     } else {
-      strokeRoundRect(buf, size, x, y, w, h, r, RGBA.idle, Math.max(1, Math.round(S)));
+      strokeRoundRect(buf, size, x, y, w, h, r, RGBA.active, Math.max(1, Math.round(S)));
     }
   });
 
