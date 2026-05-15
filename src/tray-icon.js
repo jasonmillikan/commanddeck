@@ -156,7 +156,24 @@ function buildTrayIcon(runningCount, alertLevel) {
 function buildAppIcon() {
   const { nativeImage } = require('electron');
   const size = 64;
-  const buf = buildIconRgba(0, null, process.platform, size);
+  const S = size / 22;
+  const buf = Buffer.alloc(size * size * 4);
+
+  fillRoundRect(buf, size, 0, 0, size, size, Math.round(3 * S), RGBA.bg);
+
+  FILL_ORDER.forEach((cell, i) => {
+    const x = Math.round(cell.x * S);
+    const y = Math.round(cell.y * S);
+    const w = Math.round(CELL * S);
+    const h = Math.round(CELL * S);
+    const r = Math.round(CORNER * S);
+    if (i < 2) {
+      fillRoundRect(buf, size, x, y, w, h, r, RGBA.active);
+    } else {
+      strokeRoundRect(buf, size, x, y, w, h, r, RGBA.idle, Math.max(1, Math.round(S)));
+    }
+  });
+
   return nativeImage.createFromBuffer(buf, { width: size, height: size });
 }
 
