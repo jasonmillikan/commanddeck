@@ -282,7 +282,7 @@ ipcMain.handle('export-config', async () => {
     defaultPath: path.join(os.homedir(), `commanddeck-backup-${ts}.json`),
     filters: [{ name: 'JSON', extensions: ['json'] }],
   });
-  if (canceled || !filePath) return { ok: false, cancelled: true };
+  if (canceled || !filePath) return { ok: false, canceled: true };
   try {
     fs.writeFileSync(filePath, JSON.stringify(loadConfig(), null, 2));
     return { ok: true };
@@ -297,7 +297,7 @@ ipcMain.handle('import-config', async () => {
     filters: [{ name: 'JSON', extensions: ['json'] }],
     properties: ['openFile'],
   });
-  if (canceled || !filePaths.length) return { ok: false, cancelled: true };
+  if (canceled || !filePaths.length) return { ok: false, canceled: true };
   let data;
   try {
     data = JSON.parse(fs.readFileSync(filePaths[0], 'utf8'));
@@ -315,7 +315,7 @@ ipcMain.handle('import-config', async () => {
     message: `This will replace your ${count} current command${count === 1 ? '' : 's'}.`,
     detail: 'This cannot be undone.',
   });
-  if (response !== 0) return { ok: false, cancelled: true };
+  if (response !== 0) return { ok: false, canceled: true };
   saveConfig(data);
   return { ok: true, data };
 });

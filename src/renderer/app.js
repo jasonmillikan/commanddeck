@@ -390,24 +390,12 @@ document.getElementById('btn-hide').addEventListener('click', () => window.api.h
 document.getElementById('btn-open-logs').addEventListener('click', () => window.api.openLogDir());
 
 document.getElementById('btn-export').addEventListener('click', async () => {
-  const ts = new Date().toISOString().slice(0,10);
-  const filePath = `${window.require ? '' : '/tmp/'}commanddeck-export-${ts}.json`;
-  // Simple: prompt for path via a quick hack (full dialog needs dialog API — future work)
-  const path = prompt('Export to file path:', `~/commanddeck-export-${ts}.json`);
-  if (!path) return;
-  const expanded = path.replace('~', window.homeDir || '/tmp');
-  const result = await window.api.exportConfig(expanded);
-  if (result.ok) alert(`Exported to ${expanded}`);
-  else alert('Export failed: ' + result.error);
+  await window.api.exportConfig();
 });
 
 document.getElementById('btn-import').addEventListener('click', async () => {
-  const path = prompt('Import from file path:');
-  if (!path) return;
-  const expanded = path.replace('~', '/home/' + (window.username || 'user'));
-  const result = await window.api.importConfig(expanded);
+  const result = await window.api.importConfig();
   if (result.ok) { config = result.data; renderAll(); }
-  else alert('Import failed: ' + result.error);
 });
 
 // ─── Search ───────────────────────────────────────────────────────────────────
