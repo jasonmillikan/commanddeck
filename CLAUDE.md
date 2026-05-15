@@ -100,8 +100,8 @@ All calls go through `window.api.*`:
 | `killProcess(pid)` | SIGTERM to pid |
 | `openLog(logFile)` | `shell.openPath` the log file |
 | `openLogDir()` | Opens `~/.commanddeck/logs/` |
-| `exportConfig(filePath)` | Writes config to given path |
-| `importConfig(filePath)` | Reads config from path, saves, returns data |
+| `exportConfig()` | Opens native Save dialog, writes config to chosen path |
+| `importConfig()` | Opens native Open dialog, confirms, loads config from chosen path |
 | `minimize()` / `hide()` | Window controls |
 
 Events from main → renderer via `ipcRenderer.on`:
@@ -112,7 +112,7 @@ Events from main → renderer via `ipcRenderer.on`:
 
 These were identified at the end of the prototype session — good starting points:
 
-1. **Native file dialog** — import/export currently uses `prompt()` for file paths. Should use `dialog.showOpenDialog` / `dialog.showSaveDialog` from Electron's main process via a new IPC handler.
+1. ~~**Native file dialog**~~ — **Done.** Export uses `dialog.showSaveDialog` with a suggested default filename; import uses `dialog.showOpenDialog` + a `dialog.showMessageBox` confirmation. All file I/O and dialogs live in the main process. No `prompt()` or `alert()` calls remain in the renderer.
 
 2. ~~**Tray icon missing**~~ — **Done.** Stateful 2×2 grid icon in `src/tray-icon.js`. Generates RGBA pixel buffers at runtime (no static assets). Reflects live process count (filled squares) and shows a red/amber badge on unexpected exits. Active toggles count toward the filled-square total.
 
