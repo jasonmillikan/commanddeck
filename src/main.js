@@ -4,7 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 
-const { buildTrayIcon } = require('./tray-icon');
+const { buildTrayIcon, buildAppIcon } = require('./tray-icon');
 
 // null = no alert; 'red' = crash (non-zero exit); 'amber' = unexpected clean exit
 let alertState = null;
@@ -62,7 +62,7 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
     },
-    icon: path.join(__dirname, '..', 'assets', 'icon.png'),
+    icon: buildAppIcon(),
     show: false,
   });
 
@@ -114,7 +114,7 @@ function createTray() {
 }
 
 function killAllProcesses() {
-  for (const [pid, entry] of liveProcesses.entries()) {
+  for (const [pid] of liveProcesses.entries()) {
     try {
       process.kill(pid, 'SIGTERM');
     } catch {}

@@ -151,4 +151,11 @@ function buildTrayIcon(runningCount, alertLevel) {
   return img;
 }
 
-module.exports = { buildTrayIconSvg, buildTrayIcon };
+function buildAppIcon() {
+  const { nativeImage } = require('electron');
+  const size = 64;
+  const buf = buildIconRgba(0, null, process.platform, size);
+  return nativeImage.createFromBuffer(buf, { width: size, height: size });
+}
+
+module.exports = { buildTrayIconSvg, buildTrayIcon, buildAppIcon };
