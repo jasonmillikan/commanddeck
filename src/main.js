@@ -15,6 +15,9 @@ let alertState = null;
 // so reading entry.userKilled inside the exit event would always see undefined.
 const killedByUser = new Set();
 
+// commandIds of toggle commands currently switched on (no live PID — toggle-on exits immediately)
+const activeToggles = new Set();
+
 // ─── Config file path ────────────────────────────────────────────────────────
 const CONFIG_PATH = path.join(os.homedir(), '.commanddeck', 'commands.json');
 const LOG_DIR = path.join(os.homedir(), '.commanddeck', 'logs');
@@ -124,7 +127,7 @@ function killAllProcesses() {
 
 function updateTrayIcon() {
   if (!tray) return;
-  const running = liveProcesses.size;
+  const running = liveProcesses.size + activeToggles.size;
   tray.setImage(buildTrayIcon(running, alertState));
 }
 
@@ -194,6 +197,7 @@ function spawnCommand(commandId, label, cmdString, type) {
         if (code !== 0) alertState = 'red';
         else if (alertState !== 'red') alertState = 'amber';
       }
+      if (type === 'toggle-on' && code === 0) activeToggles.add(commandId);
       updateTrayIcon();
     });
   }
@@ -237,6 +241,10 @@ ipcMain.handle('run-command', async (_, { commandId, label, cmdString, type }) =
     const ts = Date.now();
     const logFile = path.join(LOG_DIR, `${commandId}-${ts}.log`);
     const result = await runOneShot(cmdString, logFile);
+    if (result.ok) {
+      activeToggles.delete(commandId);
+      updateTrayIcon();
+    }
     return { ok: result.ok, logFile };
   }
   return { ok: false, error: 'Unknown type' };
