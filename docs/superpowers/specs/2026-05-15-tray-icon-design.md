@@ -70,8 +70,19 @@ Icon is generated programmatically in `main.js` at runtime — no static image f
 | `src/main.js` | Track user-initiated kills in `liveProcesses` to distinguish crash from clean exit |
 | `assets/` | Directory created (was missing); no static icon files needed |
 
+## Platform Icon Sizes
+
+The SVG-based generation approach is resolution-independent, so multi-platform support comes for free.
+
+| Platform | Size | Notes |
+|---|---|---|
+| Linux (Ubuntu) | 22×22px | Primary target. Standard GTK tray size. |
+| macOS | 16×16px + 32×32px (@2x) | Must call `image.setTemplateImage(true)` — macOS expects a monochrome template; the OS tints it for dark/light mode. Use black (`#000000`) instead of `#4ade80` for filled squares on macOS. Badge dot remains colored. |
+| Windows | 16×16px + 32×32px | Standard system tray. Colored icon (no template requirement). |
+
+`buildTrayIcon()` accepts a `platform` parameter (defaulting to `process.platform`) and adjusts fill color and size accordingly. `nativeImage.addRepresentation()` is used to register both the 1× and 2× representations in a single `nativeImage` for macOS Retina support.
+
 ## Out of Scope
 
 - Animated icons (e.g. pulsing on alert) — deferred.
 - Per-command icon state (showing which specific command crashed) — deferred; tooltip handles this.
-- Windows/macOS icon sizes — Ubuntu 22 (22×22) is the only target for now.
