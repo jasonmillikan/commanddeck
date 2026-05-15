@@ -25,11 +25,12 @@ commanddeck/
 ├── CLAUDE.md              ← you are here
 ├── README.md
 ├── package.json
-├── assets/
-│   └── tray-icon.png      ← missing; needs a small PNG added
+├── test/
+│   └── tray-icon.test.js  ← unit tests for tray icon renderer (node --test)
 └── src/
     ├── main.js            ← Electron main process (window, tray, IPC, process mgmt)
     ├── preload.js         ← contextBridge API surface (secure Node↔renderer bridge)
+    ├── tray-icon.js       ← stateful tray icon renderer (RGBA pixel buffer, no static assets)
     └── renderer/
         ├── index.html     ← app shell, modal markup, drawer markup
         ├── style.css      ← full styling (CSS variables, dark theme)
@@ -113,7 +114,7 @@ These were identified at the end of the prototype session — good starting poin
 
 1. **Native file dialog** — import/export currently uses `prompt()` for file paths. Should use `dialog.showOpenDialog` / `dialog.showSaveDialog` from Electron's main process via a new IPC handler.
 
-2. **Tray icon missing** — `assets/tray-icon.png` doesn't exist yet. The tray renders but is invisible. Need a simple icon (16×16 or 22×22 PNG). Could generate one programmatically with `nativeImage` + canvas.
+2. ~~**Tray icon missing**~~ — **Done.** Stateful 2×2 grid icon in `src/tray-icon.js`. Generates RGBA pixel buffers at runtime (no static assets). Reflects live process count (filled squares) and shows a red/amber badge on unexpected exits. Active toggles count toward the filled-square total.
 
 3. **Toggle state persistence** — if the app restarts, it doesn't know which toggles were ON (especially one-shot toggles with no PID). Could store toggle state in config or a separate `state.json`.
 
