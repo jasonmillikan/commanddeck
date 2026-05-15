@@ -50,7 +50,7 @@ test('alert-amber: amber badge present, no red badge', () => {
 });
 
 test('no alert: no badge circles', () => {
-  const svg = buildTrayIconSvg(1, null, 'linux');
+  const svg = buildTrayIconSvg(0, null, 'linux');
   assert.ok(!svg.includes('fill="#f87171"'), 'unexpected red badge');
   assert.ok(!svg.includes('fill="#fbbf24"'), 'unexpected amber badge');
 });
@@ -63,7 +63,7 @@ test('macOS: filled squares use black, not green', () => {
 
 test('macOS with alert: black squares + coloured badge', () => {
   const svg = buildTrayIconSvg(1, 'red', 'darwin');
-  assert.ok(svg.includes('fill="#000000"'), 'missing black square');
+  assert.equal((svg.match(/fill="#000000"/g) || []).length, 1, 'expected exactly 1 black square');
   assert.ok(svg.includes('fill="#f87171"'), 'missing red badge');
 });
 
@@ -78,6 +78,8 @@ test('size parameter controls SVG width/height', () => {
 });
 
 test('viewBox is always 0 0 22 22 regardless of size', () => {
-  const svg = buildTrayIconSvg(0, null, 'linux', 16);
-  assert.ok(svg.includes('viewBox="0 0 22 22"'), 'wrong viewBox');
+  const svg16 = buildTrayIconSvg(0, null, 'linux', 16);
+  const svg32 = buildTrayIconSvg(0, null, 'linux', 32);
+  assert.ok(svg16.includes('viewBox="0 0 22 22"'), 'wrong viewBox at size 16');
+  assert.ok(svg32.includes('viewBox="0 0 22 22"'), 'wrong viewBox at size 32');
 });
