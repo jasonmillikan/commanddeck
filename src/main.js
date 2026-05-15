@@ -4,6 +4,17 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 
+const { buildTrayIcon } = require('./tray-icon');
+
+// null = no alert; 'red' = crash (non-zero exit); 'amber' = unexpected clean exit
+let alertState = null;
+
+// PIDs the user intentionally killed — checked in exit handlers to suppress false alerts.
+// Kept as a separate Set rather than a flag on liveProcesses entries because the
+// kill-process handler deletes the entry immediately (before the process actually exits),
+// so reading entry.userKilled inside the exit event would always see undefined.
+const killedByUser = new Set();
+
 // ─── Config file path ────────────────────────────────────────────────────────
 const CONFIG_PATH = path.join(os.homedir(), '.commanddeck', 'commands.json');
 const LOG_DIR = path.join(os.homedir(), '.commanddeck', 'logs');
@@ -146,9 +157,16 @@ function spawnCommand(commandId, label, cmdString, type) {
     child.unref(); // let it run independently
     // For launchers we watch if the child exits quickly (indicating failure)
     child.on('exit', (code) => {
+      const wasUserKilled = killedByUser.has(child.pid);
+      killedByUser.delete(child.pid);
       logLine(logFile, `Exited with code ${code}`);
       liveProcesses.delete(child.pid);
       mainWindow?.webContents.send('process-exited', { commandId, pid: child.pid, code });
+      if (!wasUserKilled) {
+        if (code !== 0) alertState = 'red';
+        else if (alertState !== 'red') alertState = 'amber';
+      }
+      updateTrayIcon();
     });
   } else {
     // Foreground: stream stdout/stderr to log and to renderer
@@ -163,9 +181,17 @@ function spawnCommand(commandId, label, cmdString, type) {
       mainWindow?.webContents.send('process-output', { commandId, pid: child.pid, text });
     });
     child.on('exit', (code) => {
+      const wasUserKilled = killedByUser.has(child.pid);
+      killedByUser.delete(child.pid);
       logLine(logFile, `Exited with code ${code}`);
       liveProcesses.delete(child.pid);
       mainWindow?.webContents.send('process-exited', { commandId, pid: child.pid, code });
+      // toggle-on commands are intentionally one-shot — don't alert on their exit
+      if (!wasUserKilled && type !== 'toggle-on') {
+        if (code !== 0) alertState = 'red';
+        else if (alertState !== 'red') alertState = 'amber';
+      }
+      updateTrayIcon();
     });
   }
 
@@ -214,8 +240,10 @@ ipcMain.handle('run-command', async (_, { commandId, label, cmdString, type }) =
 
 ipcMain.handle('kill-process', (_, { pid }) => {
   try {
+    killedByUser.add(pid);
     process.kill(pid, 'SIGTERM');
     liveProcesses.delete(pid);
+    updateTrayIcon();
     return { ok: true };
   } catch (e) {
     return { ok: false, error: e.message };
