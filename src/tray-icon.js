@@ -22,11 +22,13 @@ const COLOR = {
 function buildTrayIconSvg(runningCount, alertLevel, platform, size = 22) {
   const activeColor = platform === 'darwin' ? COLOR.activeMac : COLOR.active;
   const filled = Math.max(0, Math.min(runningCount, 4));
+  // Unfilled squares show dim outlines at idle (0 running); switch to green once anything is active
+  const unfilledStroke = filled > 0 ? activeColor : COLOR.idle;
 
   const cells = FILL_ORDER.map((cell, i) =>
     i < filled
       ? `<rect x="${cell.x}" y="${cell.y}" width="${CELL}" height="${CELL}" rx="${CORNER}" fill="${activeColor}"/>`
-      : `<rect x="${cell.x}" y="${cell.y}" width="${CELL}" height="${CELL}" rx="${CORNER}" fill="none" stroke="${COLOR.idle}" stroke-width="1"/>`
+      : `<rect x="${cell.x}" y="${cell.y}" width="${CELL}" height="${CELL}" rx="${CORNER}" fill="none" stroke="${unfilledStroke}" stroke-width="1"/>`
   ).join('');
 
   const badgeColor = alertLevel === 'red' ? COLOR.red : alertLevel === 'amber' ? COLOR.amber : null;
@@ -94,15 +96,15 @@ function fillCircle(buf, size, cx, cy, r, color) {
 }
 
 function buildIconRgba(runningCount, alertLevel, platform, size) {
+  // Buffer.alloc initialises to 0 — corners outside the rounded bg stay transparent
   const buf = Buffer.alloc(size * size * 4);
   const S = size / 22;
   const activeColor = platform === 'darwin' ? RGBA.activeMac : RGBA.active;
   const filled = Math.max(0, Math.min(runningCount, 4));
+  const unfilledStroke = filled > 0 ? activeColor : RGBA.idle;
 
-  // Fill background
-  for (let i = 0; i < buf.length; i += 4) {
-    buf[i] = RGBA.bg[0]; buf[i + 1] = RGBA.bg[1]; buf[i + 2] = RGBA.bg[2]; buf[i + 3] = 255;
-  }
+  // Rounded background (rx=3 at 22px design grid)
+  fillRoundRect(buf, size, 0, 0, size, size, Math.round(3 * S), RGBA.bg);
 
   // Draw grid cells
   for (let idx = 0; idx < 4; idx++) {
@@ -115,7 +117,7 @@ function buildIconRgba(runningCount, alertLevel, platform, size) {
     if (idx < filled) {
       fillRoundRect(buf, size, x, y, w, h, r, activeColor);
     } else {
-      strokeRoundRect(buf, size, x, y, w, h, r, RGBA.idle, Math.max(1, Math.round(S)));
+      strokeRoundRect(buf, size, x, y, w, h, r, unfilledStroke, Math.max(1, Math.round(S)));
     }
   }
 

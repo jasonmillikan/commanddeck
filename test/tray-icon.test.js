@@ -8,22 +8,25 @@ test('idle: no filled squares, four idle outlines', () => {
   assert.equal((svg.match(/stroke="#3a4060"/g) || []).length, 4);
 });
 
-test('active 1: one filled square, three idle', () => {
+test('active 1: one filled square, three green outlines', () => {
   const svg = buildTrayIconSvg(1, null, 'linux');
   assert.equal((svg.match(/fill="#4ade80"/g) || []).length, 1);
-  assert.equal((svg.match(/stroke="#3a4060"/g) || []).length, 3);
+  assert.equal((svg.match(/stroke="#4ade80"/g) || []).length, 3);
+  assert.equal((svg.match(/stroke="#3a4060"/g) || []).length, 0);
 });
 
-test('active 2: two filled squares, two idle', () => {
+test('active 2: two filled squares, two green outlines', () => {
   const svg = buildTrayIconSvg(2, null, 'linux');
   assert.equal((svg.match(/fill="#4ade80"/g) || []).length, 2);
-  assert.equal((svg.match(/stroke="#3a4060"/g) || []).length, 2);
+  assert.equal((svg.match(/stroke="#4ade80"/g) || []).length, 2);
+  assert.equal((svg.match(/stroke="#3a4060"/g) || []).length, 0);
 });
 
-test('active 3: three filled squares, one idle', () => {
+test('active 3: three filled squares, one green outline', () => {
   const svg = buildTrayIconSvg(3, null, 'linux');
   assert.equal((svg.match(/fill="#4ade80"/g) || []).length, 3);
-  assert.equal((svg.match(/stroke="#3a4060"/g) || []).length, 1);
+  assert.equal((svg.match(/stroke="#4ade80"/g) || []).length, 1);
+  assert.equal((svg.match(/stroke="#3a4060"/g) || []).length, 0);
 });
 
 test('full: four filled squares, no idle', () => {
