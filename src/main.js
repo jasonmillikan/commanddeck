@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, shell } = require('electron');
+const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, shell, dialog } = require('electron');
 const { spawn, exec } = require('child_process');
 const path = require('path');
 const fs = require('fs');
@@ -276,24 +276,48 @@ ipcMain.handle('open-log-dir', () => {
 ipcMain.handle('window-minimize', () => mainWindow.minimize());
 ipcMain.handle('window-hide', () => mainWindow.hide());
 
-ipcMain.handle('export-config', (_, { filePath }) => {
+ipcMain.handle('export-config', async () => {
+  const ts = new Date().toISOString().slice(0, 10);
+  const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+    defaultPath: path.join(os.homedir(), `commanddeck-backup-${ts}.json`),
+    filters: [{ name: 'JSON', extensions: ['json'] }],
+  });
+  if (canceled || !filePath) return { ok: false, cancelled: true };
   try {
-    const data = loadConfig();
-    fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+    fs.writeFileSync(filePath, JSON.stringify(loadConfig(), null, 2));
     return { ok: true };
   } catch (e) {
+    dialog.showErrorBox('Export failed', e.message);
     return { ok: false, error: e.message };
   }
 });
 
-ipcMain.handle('import-config', (_, { filePath }) => {
+ipcMain.handle('import-config', async () => {
+  const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+    filters: [{ name: 'JSON', extensions: ['json'] }],
+    properties: ['openFile'],
+  });
+  if (canceled || !filePaths.length) return { ok: false, cancelled: true };
+  let data;
   try {
-    const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-    saveConfig(data);
-    return { ok: true, data };
+    data = JSON.parse(fs.readFileSync(filePaths[0], 'utf8'));
   } catch (e) {
+    dialog.showErrorBox('Import failed', `Could not read file: ${e.message}`);
     return { ok: false, error: e.message };
   }
+  const current = loadConfig();
+  const count = (current.commands || []).length;
+  const { response } = await dialog.showMessageBox(mainWindow, {
+    type: 'warning',
+    buttons: ['Continue', 'Cancel'],
+    defaultId: 1,
+    cancelId: 1,
+    message: `This will replace your ${count} current command${count === 1 ? '' : 's'}.`,
+    detail: 'This cannot be undone.',
+  });
+  if (response !== 0) return { ok: false, cancelled: true };
+  saveConfig(data);
+  return { ok: true, data };
 });
 
 // ─── App lifecycle ────────────────────────────────────────────────────────────
