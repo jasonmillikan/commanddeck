@@ -21,7 +21,7 @@ const COLOR = {
 
 function buildTrayIconSvg(runningCount, alertLevel, platform, size = 22) {
   const activeColor = platform === 'darwin' ? COLOR.activeMac : COLOR.active;
-  const filled = Math.min(runningCount, 4);
+  const filled = Math.max(0, Math.min(runningCount, 4));
 
   const cells = FILL_ORDER.map((cell, i) =>
     i < filled
@@ -30,6 +30,7 @@ function buildTrayIconSvg(runningCount, alertLevel, platform, size = 22) {
   ).join('');
 
   const badgeColor = alertLevel === 'red' ? COLOR.red : alertLevel === 'amber' ? COLOR.amber : null;
+  // Badge overlaps top-right cell by design — SVG paint order keeps it visible at all run counts
   const badge = badgeColor ? `<circle cx="19" cy="3" r="3" fill="${badgeColor}"/>` : '';
 
   return `<svg width="${size}" height="${size}" viewBox="0 0 22 22" xmlns="http://www.w3.org/2000/svg"><rect width="22" height="22" rx="3" fill="${COLOR.bg}"/>${cells}${badge}</svg>`;
