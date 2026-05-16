@@ -273,11 +273,11 @@ async function startCommand(cmd) {
   if (result.ok) {
     if (!liveMap[cmd.id]) liveMap[cmd.id] = [];
     if (result.pid) {
-      liveMap[cmd.id] = [{ pid: result.pid, startedAt: result.startedAt, logFile: result.logFile }];
+      liveMap[cmd.id] = [{ pid: result.pid, startedAt: result.startedAt, logFile: result.logFile, lastSession: false }];
     }
     // For toggle-on (one-shot), mark as "active" with no PID
     if (type === 'toggle-on') {
-      liveMap[cmd.id] = [{ pid: null, startedAt: new Date().toISOString(), logFile: result.logFile }];
+      liveMap[cmd.id] = [{ pid: null, startedAt: new Date().toISOString(), logFile: result.logFile, lastSession: false }];
     }
   }
   renderAll();
