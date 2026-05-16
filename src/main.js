@@ -231,7 +231,11 @@ function spawnCommand(commandId, label, cmdString, type) {
         if (code !== 0) alertState = 'red';
         else if (alertState !== 'red') alertState = 'amber';
       }
-      if (type === 'toggle-on' && code === 0) activeTogglesMeta.set(commandId, { startedAt: entry.startedAt, logFile });
+      if (type === 'toggle-on' && code === 0) {
+        activeTogglesMeta.set(commandId, { startedAt: entry.startedAt, logFile });
+        lastSessionToggles.delete(commandId);
+        saveCurrentState();
+      }
       updateTrayIcon();
     });
   }
@@ -262,6 +266,16 @@ ipcMain.handle('get-live-processes', () => {
     result[entry.commandId] = result[entry.commandId] || [];
     result[entry.commandId].push({ pid, startedAt: entry.startedAt, logFile: entry.logFile });
   }
+  for (const [commandId, meta] of activeTogglesMeta.entries()) {
+    if (!result[commandId]) {
+      result[commandId] = [{ pid: null, startedAt: meta.startedAt, logFile: meta.logFile, lastSession: false }];
+    }
+  }
+  for (const commandId of lastSessionToggles) {
+    if (!result[commandId]) {
+      result[commandId] = [{ pid: null, startedAt: null, logFile: null, lastSession: true }];
+    }
+  }
   return result;
 });
 
@@ -277,6 +291,8 @@ ipcMain.handle('run-command', async (_, { commandId, label, cmdString, type }) =
     const result = await runOneShot(cmdString, logFile);
     if (result.ok) {
       activeTogglesMeta.delete(commandId);
+      lastSessionToggles.delete(commandId);
+      saveCurrentState();
       updateTrayIcon();
     }
     return { ok: result.ok, logFile };
