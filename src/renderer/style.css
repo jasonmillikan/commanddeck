@@ -276,6 +276,15 @@ body { font-family: var(--font-ui); font-size: 14px; display: flex; flex-directi
   box-shadow: 0 0 6px var(--accent);
   animation: pulse 2s infinite;
 }
+.meta-dot.last-session {
+  background: var(--warn);
+  opacity: 0.55;
+}
+.meta-last-session {
+  color: var(--warn);
+  opacity: 0.8;
+  font-style: italic;
+}
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }

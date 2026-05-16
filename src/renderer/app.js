@@ -91,14 +91,22 @@ function renderCard(cmd) {
   const displayCmd = running && cmd.type === 'toggle'
     ? (cmd.offCmd || cmd.onCmd)
     : (cmd.onCmd || cmd.launchCmd || '');
+  const isLastSession = (liveMap[cmd.id] || [])[0]?.lastSession === true;
 
-  const metaHtml = running ? `
+  let metaHtml;
+  if (!running) {
+    metaHtml = `<div class="card-meta"><div class="meta-dot"></div><span>idle</span></div>`;
+  } else if (isLastSession) {
+    metaHtml = `<div class="card-meta"><div class="meta-dot last-session"></div><span class="meta-last-session">last session</span></div>`;
+  } else {
+    metaHtml = `
     <div class="card-meta">
       <div class="meta-dot live"></div>
       ${pid ? `<span class="meta-pid">PID ${pid}</span>` : ''}
       ${startedAt ? `<span class="meta-time">since ${formatTime(startedAt)}</span>` : ''}
     </div>
-  ` : `<div class="card-meta"><div class="meta-dot"></div><span>idle</span></div>`;
+  `;
+  }
 
   // Bottom action buttons vary by type and state
   let actionsHtml = '';
