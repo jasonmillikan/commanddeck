@@ -153,7 +153,11 @@ function restoreToggleState() {
     if (!cmd || cmd.type !== 'toggle') continue;
 
     if (cmd.autoRestore) {
-      spawnCommand(commandId, cmd.label, cmd.onCmd, 'toggle-on');
+      try {
+        spawnCommand(commandId, cmd.label, cmd.onCmd, 'toggle-on');
+      } catch (err) {
+        console.error(`[restore] Failed to spawn ${commandId}:`, err.message);
+      }
     } else {
       lastSessionToggles.add(commandId);
     }
@@ -356,6 +360,9 @@ app.whenReady().then(() => {
   ensureConfigDir();
   createWindow();
   createTray();
+  // Auto-restore spawns run before the renderer is ready. IPC events (process-exited,
+  // process-output) may be dropped if the renderer hasn't loaded yet — this is safe
+  // because the renderer re-derives toggle state from getLiveProcesses() on boot.
   restoreToggleState();
 });
 
