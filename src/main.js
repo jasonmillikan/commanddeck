@@ -5,6 +5,7 @@ const fs = require('fs');
 const os = require('os');
 
 const { buildTrayIcon, buildAppIcon } = require('./tray-icon');
+const { loadState, saveState } = require('./state');
 
 // null = no alert; 'red' = crash (non-zero exit); 'amber' = unexpected clean exit
 let alertState = null;
@@ -15,12 +16,19 @@ let alertState = null;
 // so reading entry.userKilled inside the exit event would always see undefined.
 const killedByUser = new Set();
 
-// commandIds of toggle commands currently switched on (no live PID — toggle-on exits immediately)
-const activeToggles = new Set();
-
 // ─── Config file path ────────────────────────────────────────────────────────
 const CONFIG_PATH = path.join(os.homedir(), '.commanddeck', 'commands.json');
 const LOG_DIR = path.join(os.homedir(), '.commanddeck', 'logs');
+const STATE_PATH = path.join(os.homedir(), '.commanddeck', 'state.json');
+
+// commandId → { startedAt, logFile } — verified active this session
+const activeTogglesMeta = new Map();
+// commandIds active last session, not yet verified (remember-only)
+const lastSessionToggles = new Set();
+
+function saveCurrentState() {
+  saveState(STATE_PATH, [...activeTogglesMeta.keys(), ...lastSessionToggles]);
+}
 
 function ensureConfigDir() {
   const dir = path.dirname(CONFIG_PATH);
@@ -28,6 +36,9 @@ function ensureConfigDir() {
   if (!fs.existsSync(LOG_DIR)) fs.mkdirSync(LOG_DIR, { recursive: true });
   if (!fs.existsSync(CONFIG_PATH)) {
     fs.writeFileSync(CONFIG_PATH, JSON.stringify({ commands: [] }, null, 2));
+  }
+  if (!fs.existsSync(STATE_PATH)) {
+    fs.writeFileSync(STATE_PATH, JSON.stringify({ toggles: {} }, null, 2));
   }
 }
 
@@ -127,7 +138,7 @@ function killAllProcesses() {
 
 function updateTrayIcon() {
   if (!tray) return;
-  const running = liveProcesses.size + activeToggles.size;
+  const running = liveProcesses.size + activeTogglesMeta.size + lastSessionToggles.size;
   tray.setImage(buildTrayIcon(running, alertState));
 }
 
@@ -197,7 +208,7 @@ function spawnCommand(commandId, label, cmdString, type) {
         if (code !== 0) alertState = 'red';
         else if (alertState !== 'red') alertState = 'amber';
       }
-      if (type === 'toggle-on' && code === 0) activeToggles.add(commandId);
+      if (type === 'toggle-on' && code === 0) activeTogglesMeta.set(commandId, { startedAt: entry.startedAt, logFile });
       updateTrayIcon();
     });
   }
@@ -242,7 +253,7 @@ ipcMain.handle('run-command', async (_, { commandId, label, cmdString, type }) =
     const logFile = path.join(LOG_DIR, `${commandId}-${ts}.log`);
     const result = await runOneShot(cmdString, logFile);
     if (result.ok) {
-      activeToggles.delete(commandId);
+      activeTogglesMeta.delete(commandId);
       updateTrayIcon();
     }
     return { ok: result.ok, logFile };
