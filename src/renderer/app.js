@@ -329,6 +329,7 @@ function openModal(cmd = null) {
   document.getElementById('f-on').value = cmd?.onCmd || cmd?.launchCmd || '';
   document.getElementById('f-off').value = cmd?.offCmd || '';
   document.getElementById('f-group').value = cmd?.group || '';
+  document.getElementById('f-auto-restore').checked = cmd?.autoRestore || false;
   updateModalFields();
   document.getElementById('modal-backdrop').classList.add('open');
   document.getElementById('f-label').focus();
@@ -338,15 +339,21 @@ function updateModalFields() {
   const type = document.getElementById('f-type').value;
   const onLabel = document.getElementById('f-on-label');
   const offRow = document.getElementById('f-off-row');
+  const autoRestoreRow = document.getElementById('f-auto-restore-row');
   if (type === 'toggle') {
     onLabel.firstChild.textContent = 'ON Command ';
     offRow.style.display = '';
+    autoRestoreRow.style.display = '';
   } else if (type === 'launcher') {
     onLabel.firstChild.textContent = 'Launch Command ';
     offRow.style.display = 'none';
+    autoRestoreRow.style.display = 'none';
+    document.getElementById('f-auto-restore').checked = false;
   } else {
     onLabel.firstChild.textContent = 'Command ';
     offRow.style.display = 'none';
+    autoRestoreRow.style.display = 'none';
+    document.getElementById('f-auto-restore').checked = false;
   }
 }
 
@@ -375,7 +382,11 @@ document.getElementById('modal-save').addEventListener('click', async () => {
     note: document.getElementById('f-note').value.trim(),
     type,
     group: document.getElementById('f-group').value.trim(),
-    ...(type === 'toggle'    ? { onCmd, offCmd: document.getElementById('f-off').value.trim() } : {}),
+    ...(type === 'toggle' ? {
+      onCmd,
+      offCmd: document.getElementById('f-off').value.trim(),
+      autoRestore: document.getElementById('f-auto-restore').checked,
+    } : {}),
     ...(type === 'launcher'  ? { launchCmd: onCmd } : {}),
     ...(type === 'foreground'? { onCmd } : {}),
   };

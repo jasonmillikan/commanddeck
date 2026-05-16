@@ -425,6 +425,21 @@ body { font-family: var(--font-ui); font-size: 14px; display: flex; flex-directi
 .modal-body input:focus, .modal-body select:focus { border-color: var(--accent2); }
 .modal-body select { cursor: pointer; }
 .required { color: var(--accent); }
+.checkbox-label {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-mid);
+}
+.checkbox-label input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--accent);
+  cursor: pointer;
+  flex-shrink: 0;
+}
 
 .modal-footer {
   display: flex;
