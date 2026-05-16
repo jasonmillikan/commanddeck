@@ -235,6 +235,9 @@ function spawnCommand(commandId, label, cmdString, type) {
         activeTogglesMeta.set(commandId, { startedAt: entry.startedAt, logFile });
         lastSessionToggles.delete(commandId);
         saveCurrentState();
+      } else if (type === 'toggle-on') {
+        lastSessionToggles.delete(commandId);
+        saveCurrentState();
       }
       updateTrayIcon();
     });
@@ -264,7 +267,7 @@ ipcMain.handle('get-live-processes', () => {
   const result = {};
   for (const [pid, entry] of liveProcesses.entries()) {
     result[entry.commandId] = result[entry.commandId] || [];
-    result[entry.commandId].push({ pid, startedAt: entry.startedAt, logFile: entry.logFile });
+    result[entry.commandId].push({ pid, startedAt: entry.startedAt, logFile: entry.logFile, lastSession: false });
   }
   for (const [commandId, meta] of activeTogglesMeta.entries()) {
     if (!result[commandId]) {
