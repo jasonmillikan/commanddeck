@@ -571,6 +571,7 @@ In `src/renderer/style.css`, find the modal label styles. Add:
 
 ```css
 .checkbox-label {
+  display: flex;
   flex-direction: row;
   align-items: center;
   gap: 10px;

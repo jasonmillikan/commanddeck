@@ -116,7 +116,9 @@ These were identified at the end of the prototype session — good starting poin
 
 2. ~~**Tray icon missing**~~ — **Done.** Stateful 2×2 grid icon in `src/tray-icon.js`. Generates RGBA pixel buffers at runtime (no static assets). Reflects live process count (filled squares) and shows a red/amber badge on unexpected exits. Active toggles count toward the filled-square total.
 
-3. **Toggle state persistence** — if the app restarts, it doesn't know which toggles were ON (especially one-shot toggles with no PID). Could store toggle state in config or a separate `state.json`.
+3. ~~**Toggle state persistence**~~ — **Done.** Per-toggle "Auto-restore on startup" checkbox (stored as `autoRestore: true` in commands.json). Auto-restore re-runs `onCmd` on startup; remember-only toggles show an amber "last session" indicator. State persisted in `~/.commanddeck/state.json` (app-managed, never exported).
+
+   **Follow-on:** A `checkCmd` field per toggle (e.g., `pactl list short modules | grep module-loopback`) would allow the app to verify real system state rather than relying on last-known memory. Skipped as out of scope for this iteration.
 
 4. **Autostart `.desktop` file** — UI option to enable/disable autostart by writing to `~/.config/autostart/commanddeck.desktop`.
 
