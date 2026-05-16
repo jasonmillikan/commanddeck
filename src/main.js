@@ -142,6 +142,25 @@ function updateTrayIcon() {
   tray.setImage(buildTrayIcon(running, alertState));
 }
 
+function restoreToggleState() {
+  const state = loadState(STATE_PATH);
+  const cfg = loadConfig();
+  const commandMap = new Map(cfg.commands.map(c => [c.id, c]));
+
+  for (const [commandId, active] of Object.entries(state.toggles)) {
+    if (!active) continue;
+    const cmd = commandMap.get(commandId);
+    if (!cmd || cmd.type !== 'toggle') continue;
+
+    if (cmd.autoRestore) {
+      spawnCommand(commandId, cmd.label, cmd.onCmd, 'toggle-on');
+    } else {
+      lastSessionToggles.add(commandId);
+    }
+  }
+  updateTrayIcon();
+}
+
 // ─── Process helpers ─────────────────────────────────────────────────────────
 
 function logLine(logFile, line) {
@@ -337,7 +356,7 @@ app.whenReady().then(() => {
   ensureConfigDir();
   createWindow();
   createTray();
-  updateTrayIcon(); // set idle state immediately (liveProcesses is empty on fresh start)
+  restoreToggleState();
 });
 
 app.on('window-all-closed', (e) => {
