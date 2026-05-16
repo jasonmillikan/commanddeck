@@ -426,6 +426,7 @@ body { font-family: var(--font-ui); font-size: 14px; display: flex; flex-directi
 .modal-body select { cursor: pointer; }
 .required { color: var(--accent); }
 .checkbox-label {
+  display: flex;
   flex-direction: row;
   align-items: center;
   gap: 10px;
