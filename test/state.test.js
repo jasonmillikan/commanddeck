@@ -25,6 +25,17 @@ test('loadState returns empty toggles when file contains corrupt JSON', () => {
   }
 });
 
+test('loadState returns empty toggles when file contains valid JSON with wrong schema', () => {
+  const p = tmpPath();
+  fs.writeFileSync(p, JSON.stringify({ other: 'data' }));
+  try {
+    const result = loadState(p);
+    assert.deepEqual(result, { toggles: {} });
+  } finally {
+    fs.unlinkSync(p);
+  }
+});
+
 test('saveState writes all provided ids as true booleans', () => {
   const p = tmpPath();
   try {
@@ -58,7 +69,7 @@ test('loadState roundtrips saveState output correctly', () => {
   }
 });
 
-test('saveState accepts any iterable (Set, Map keys, generator)', () => {
+test('saveState accepts a Set iterable', () => {
   const p = tmpPath();
   try {
     const ids = new Set(['a', 'b', 'c']);

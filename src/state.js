@@ -2,7 +2,11 @@ const fs = require('fs');
 
 function loadState(statePath) {
   try {
-    return JSON.parse(fs.readFileSync(statePath, 'utf8'));
+    const data = JSON.parse(fs.readFileSync(statePath, 'utf8'));
+    if (data && typeof data.toggles === 'object' && !Array.isArray(data.toggles) && data.toggles !== null) {
+      return data;
+    }
+    return { toggles: {} };
   } catch {
     return { toggles: {} };
   }
