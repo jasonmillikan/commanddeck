@@ -118,7 +118,6 @@ function renderCard(cmd) {
     `;
   } else if (cmd.type === 'launcher') {
     actionsHtml = `
-      ${running ? `<button class="card-btn card-btn-kill" data-action="kill" data-id="${cmd.id}">KILL</button>` : ''}
       <button class="card-btn card-btn-log"    data-action="log"    data-id="${cmd.id}">LOG</button>
       <button class="card-btn card-btn-edit"   data-action="edit"   data-id="${cmd.id}">EDIT</button>
       <button class="card-btn card-btn-delete" data-action="delete" data-id="${cmd.id}">DEL</button>
