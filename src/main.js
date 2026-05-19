@@ -72,6 +72,16 @@ const liveProcesses = new Map();
 let mainWindow = null;
 let tray = null;
 
+function toggleWindow() {
+  if (!mainWindow) return;
+  if (mainWindow.isVisible()) {
+    mainWindow.hide();
+  } else {
+    mainWindow.show();
+    mainWindow.focus();
+  }
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 900,
@@ -275,6 +285,17 @@ ipcMain.handle('load-config', () => loadConfig());
 ipcMain.handle('save-config', (_, data) => { saveConfig(data); return true; });
 ipcMain.handle('load-prefs', () => loadPrefs(PREFS_PATH));
 
+ipcMain.handle('save-prefs', (_, data) => {
+  globalShortcut.unregisterAll();
+  prefs = { ...data };
+  savePrefs(PREFS_PATH, prefs);
+  if (prefs.hotkey) {
+    const ok = globalShortcut.register(prefs.hotkey, toggleWindow);
+    if (!ok) return { ok: false, error: 'hotkey_conflict' };
+  }
+  return { ok: true };
+});
+
 ipcMain.handle('get-live-processes', () => {
   const result = {};
   for (const [pid, entry] of liveProcesses.entries()) {
@@ -392,6 +413,7 @@ app.whenReady().then(() => {
   prefs = loadPrefs(PREFS_PATH);
   createWindow();
   createTray();
+  if (prefs.hotkey) globalShortcut.register(prefs.hotkey, toggleWindow);
   // Auto-restore spawns run before the renderer is ready. IPC events (process-exited,
   // process-output) may be dropped if the renderer hasn't loaded yet — this is safe
   // because the renderer re-derives toggle state from getLiveProcesses() on boot.
@@ -401,4 +423,8 @@ app.whenReady().then(() => {
 app.on('window-all-closed', (e) => {
   // Don't quit — we live in the tray
   e.preventDefault();
+});
+
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll();
 });
