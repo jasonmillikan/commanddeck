@@ -6,7 +6,7 @@ const os = require('os');
 
 const { buildTrayIcon, buildAppIcon } = require('./tray-icon');
 const { loadState, saveState } = require('./state');
-const { loadPrefs, savePrefs } = require('./prefs');
+const { loadPrefs, savePrefs, DEFAULTS } = require('./prefs');
 
 // null = no alert; 'red' = crash (non-zero exit); 'amber' = unexpected clean exit
 let alertState = null;
@@ -45,10 +45,7 @@ function ensureConfigDir() {
     fs.writeFileSync(STATE_PATH, JSON.stringify({ toggles: {} }, null, 2));
   }
   if (!fs.existsSync(PREFS_PATH)) {
-    fs.writeFileSync(PREFS_PATH, JSON.stringify({
-      hotkey: 'Super+D',
-      notify: { onCrash: true, onUnexpectedExit: false },
-    }, null, 2));
+    savePrefs(PREFS_PATH, { ...DEFAULTS, notify: { ...DEFAULTS.notify } });
   }
 }
 
@@ -296,12 +293,12 @@ ipcMain.handle('load-prefs', () => loadPrefs(PREFS_PATH));
 
 ipcMain.handle('save-prefs', (_, data) => {
   globalShortcut.unregisterAll();
-  prefs = { ...data };
-  savePrefs(PREFS_PATH, prefs);
-  if (prefs.hotkey) {
-    const ok = globalShortcut.register(prefs.hotkey, toggleWindow);
+  if (data.hotkey) {
+    const ok = globalShortcut.register(data.hotkey, toggleWindow);
     if (!ok) return { ok: false, error: 'hotkey_conflict' };
   }
+  prefs = { ...data };
+  savePrefs(PREFS_PATH, prefs);
   return { ok: true };
 });
 
