@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, shell, dialog } = require('electron');
+const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, shell, dialog, globalShortcut, Notification } = require('electron');
 const { spawn, exec } = require('child_process');
 const path = require('path');
 const fs = require('fs');
@@ -6,6 +6,7 @@ const os = require('os');
 
 const { buildTrayIcon, buildAppIcon } = require('./tray-icon');
 const { loadState, saveState } = require('./state');
+const { loadPrefs, savePrefs } = require('./prefs');
 
 // null = no alert; 'red' = crash (non-zero exit); 'amber' = unexpected clean exit
 let alertState = null;
@@ -16,10 +17,13 @@ let alertState = null;
 // so reading entry.userKilled inside the exit event would always see undefined.
 const killedByUser = new Set();
 
+let prefs = {};
+
 // ─── Config file path ────────────────────────────────────────────────────────
 const CONFIG_PATH = path.join(os.homedir(), '.commanddeck', 'commands.json');
 const LOG_DIR = path.join(os.homedir(), '.commanddeck', 'logs');
 const STATE_PATH = path.join(os.homedir(), '.commanddeck', 'state.json');
+const PREFS_PATH = path.join(os.homedir(), '.commanddeck', 'prefs.json');
 
 // commandId → { startedAt, logFile } — verified active this session
 const activeTogglesMeta = new Map();
@@ -39,6 +43,12 @@ function ensureConfigDir() {
   }
   if (!fs.existsSync(STATE_PATH)) {
     fs.writeFileSync(STATE_PATH, JSON.stringify({ toggles: {} }, null, 2));
+  }
+  if (!fs.existsSync(PREFS_PATH)) {
+    fs.writeFileSync(PREFS_PATH, JSON.stringify({
+      hotkey: 'Super+D',
+      notify: { onCrash: true, onUnexpectedExit: false },
+    }, null, 2));
   }
 }
 
@@ -263,6 +273,7 @@ function runOneShot(cmdString, logFile) {
 
 ipcMain.handle('load-config', () => loadConfig());
 ipcMain.handle('save-config', (_, data) => { saveConfig(data); return true; });
+ipcMain.handle('load-prefs', () => loadPrefs(PREFS_PATH));
 
 ipcMain.handle('get-live-processes', () => {
   const result = {};
@@ -378,6 +389,7 @@ ipcMain.handle('import-config', async () => {
 
 app.whenReady().then(() => {
   ensureConfigDir();
+  prefs = loadPrefs(PREFS_PATH);
   createWindow();
   createTray();
   // Auto-restore spawns run before the renderer is ready. IPC events (process-exited,
