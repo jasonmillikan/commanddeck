@@ -6,7 +6,7 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
-    "test": "node --test test/tray-icon.test.js test/state.test.js"
+    "test": "node --test test/*.test.js"
   },
   "keywords": ["electron", "terminal", "commands", "productivity", "linux"],
   "author": "Jason Millikan",

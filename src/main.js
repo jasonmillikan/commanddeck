@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, shell, dialog } = require('electron');
+const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, shell, dialog, globalShortcut, Notification } = require('electron');
 const { spawn, exec } = require('child_process');
 const path = require('path');
 const fs = require('fs');
@@ -6,6 +6,7 @@ const os = require('os');
 
 const { buildTrayIcon, buildAppIcon } = require('./tray-icon');
 const { loadState, saveState } = require('./state');
+const { loadPrefs, savePrefs, DEFAULTS } = require('./prefs');
 
 // null = no alert; 'red' = crash (non-zero exit); 'amber' = unexpected clean exit
 let alertState = null;
@@ -16,10 +17,13 @@ let alertState = null;
 // so reading entry.userKilled inside the exit event would always see undefined.
 const killedByUser = new Set();
 
+let prefs = {};
+
 // ─── Config file path ────────────────────────────────────────────────────────
 const CONFIG_PATH = path.join(os.homedir(), '.commanddeck', 'commands.json');
 const LOG_DIR = path.join(os.homedir(), '.commanddeck', 'logs');
 const STATE_PATH = path.join(os.homedir(), '.commanddeck', 'state.json');
+const PREFS_PATH = path.join(os.homedir(), '.commanddeck', 'prefs.json');
 
 // commandId → { startedAt, logFile } — verified active this session
 const activeTogglesMeta = new Map();
@@ -39,6 +43,9 @@ function ensureConfigDir() {
   }
   if (!fs.existsSync(STATE_PATH)) {
     fs.writeFileSync(STATE_PATH, JSON.stringify({ toggles: {} }, null, 2));
+  }
+  if (!fs.existsSync(PREFS_PATH)) {
+    savePrefs(PREFS_PATH, { ...DEFAULTS, notify: { ...DEFAULTS.notify } });
   }
 }
 
@@ -61,6 +68,16 @@ const liveProcesses = new Map();
 // ─── Window & Tray ───────────────────────────────────────────────────────────
 let mainWindow = null;
 let tray = null;
+
+function toggleWindow() {
+  if (!mainWindow) return;
+  if (mainWindow.isVisible()) {
+    mainWindow.hide();
+  } else {
+    mainWindow.show();
+    mainWindow.focus();
+  }
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -117,14 +134,7 @@ function createTray() {
   ]);
 
   tray.setContextMenu(contextMenu);
-  tray.on('click', () => {
-    if (mainWindow.isVisible()) {
-      mainWindow.hide();
-    } else {
-      mainWindow.show();
-      mainWindow.focus();
-    }
-  });
+  tray.on('click', toggleWindow);
 }
 
 function killAllProcesses() {
@@ -173,6 +183,20 @@ function logLine(logFile, line) {
   fs.appendFileSync(logFile, `[${ts}] ${line}\n`);
 }
 
+function notifyProcessExit(label, code, wasUserKilled, type) {
+  if (wasUserKilled || type === 'toggle-on') return;
+  let body;
+  if (code !== 0 && prefs.notify?.onCrash) {
+    body = `"${label}" stopped with an error (code ${code})`;
+  } else if (code === 0 && prefs.notify?.onUnexpectedExit) {
+    body = `"${label}" exited unexpectedly`;
+  }
+  if (!body) return;
+  const n = new Notification({ title: 'CommandDeck', body });
+  n.on('click', () => { mainWindow?.show(); mainWindow?.focus(); });
+  n.show();
+}
+
 function spawnCommand(commandId, label, cmdString, type) {
   const ts = Date.now();
   const logFile = path.join(LOG_DIR, `${commandId}-${ts}.log`);
@@ -207,6 +231,7 @@ function spawnCommand(commandId, label, cmdString, type) {
         if (code !== 0) alertState = 'red';
         else if (alertState !== 'red') alertState = 'amber';
       }
+      notifyProcessExit(label, code, wasUserKilled, type);
       updateTrayIcon();
     });
   } else {
@@ -232,6 +257,7 @@ function spawnCommand(commandId, label, cmdString, type) {
         if (code !== 0) alertState = 'red';
         else if (alertState !== 'red') alertState = 'amber';
       }
+      notifyProcessExit(label, code, wasUserKilled, type);
       if (type === 'toggle-on' && code === 0) {
         activeTogglesMeta.set(commandId, { startedAt: entry.startedAt, logFile });
         lastSessionToggles.delete(commandId);
@@ -263,6 +289,18 @@ function runOneShot(cmdString, logFile) {
 
 ipcMain.handle('load-config', () => loadConfig());
 ipcMain.handle('save-config', (_, data) => { saveConfig(data); return true; });
+ipcMain.handle('load-prefs', () => loadPrefs(PREFS_PATH));
+
+ipcMain.handle('save-prefs', (_, data) => {
+  globalShortcut.unregisterAll();
+  if (data.hotkey) {
+    const ok = globalShortcut.register(data.hotkey, toggleWindow);
+    if (!ok) return { ok: false, error: 'hotkey_conflict' };
+  }
+  prefs = { ...data };
+  savePrefs(PREFS_PATH, prefs);
+  return { ok: true };
+});
 
 ipcMain.handle('get-live-processes', () => {
   const result = {};
@@ -378,8 +416,10 @@ ipcMain.handle('import-config', async () => {
 
 app.whenReady().then(() => {
   ensureConfigDir();
+  prefs = loadPrefs(PREFS_PATH);
   createWindow();
   createTray();
+  if (prefs.hotkey) globalShortcut.register(prefs.hotkey, toggleWindow);
   // Auto-restore spawns run before the renderer is ready. IPC events (process-exited,
   // process-output) may be dropped if the renderer hasn't loaded yet — this is safe
   // because the renderer re-derives toggle state from getLiveProcesses() on boot.
@@ -389,4 +429,8 @@ app.whenReady().then(() => {
 app.on('window-all-closed', (e) => {
   // Don't quit — we live in the tray
   e.preventDefault();
+});
+
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll();
 });

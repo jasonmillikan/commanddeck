@@ -9,6 +9,7 @@ let searchQuery = '';
 let editingId = null;
 let drawerCommandId = null;
 let drawerLogFile = null;
+let prefs = { hotkey: '', notify: { onCrash: true, onUnexpectedExit: false } };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function uid() {
@@ -41,6 +42,7 @@ function getLogFile(id) {
 async function loadAll() {
   config = await window.api.loadConfig();
   liveMap = await window.api.getLiveProcesses();
+  prefs = await window.api.loadPrefs();
   renderAll();
 }
 
@@ -171,6 +173,65 @@ function renderCard(cmd) {
 
 function escHtml(s) {
   return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function keyEventToAccelerator(e) {
+  const MODIFIER_KEYS = new Set(['Control', 'Shift', 'Alt', 'Meta', 'OS']);
+  if (MODIFIER_KEYS.has(e.key)) return null;
+
+  const parts = [];
+  if (e.ctrlKey) parts.push('Ctrl');
+  if (e.altKey) parts.push('Alt');
+  if (e.shiftKey) parts.push('Shift');
+  if (e.metaKey) parts.push('Super');
+
+  let key = e.key;
+  if (key === ' ') key = 'Space';
+  else if (key === 'ArrowUp') key = 'Up';
+  else if (key === 'ArrowDown') key = 'Down';
+  else if (key === 'ArrowLeft') key = 'Left';
+  else if (key === 'ArrowRight') key = 'Right';
+  else if (key.length === 1) key = key.toUpperCase();
+
+  const isFunctionKey = /^F\d+$/.test(key);
+  if (parts.length === 0 && !isFunctionKey) return null;
+
+  return [...parts, key].join('+');
+}
+
+let hotkeyRecording = false;
+let hotkeyRecordPrev = '';
+
+function startHotkeyRecording() {
+  hotkeyRecording = true;
+  hotkeyRecordPrev = document.getElementById('p-hotkey').value;
+  const input = document.getElementById('p-hotkey');
+  input.value = '';
+  input.placeholder = 'Press keys…';
+  input.classList.add('recording');
+  document.getElementById('p-hotkey-record').textContent = 'Cancel';
+  document.addEventListener('keydown', handleHotkeyCapture);
+}
+
+function stopHotkeyRecording(revert = false) {
+  if (!hotkeyRecording) return;
+  hotkeyRecording = false;
+  const input = document.getElementById('p-hotkey');
+  input.classList.remove('recording');
+  input.placeholder = 'None';
+  document.getElementById('p-hotkey-record').textContent = 'Record';
+  document.removeEventListener('keydown', handleHotkeyCapture);
+  if (revert) input.value = hotkeyRecordPrev;
+}
+
+function handleHotkeyCapture(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  if (e.key === 'Escape') { stopHotkeyRecording(true); return; }
+  const acc = keyEventToAccelerator(e);
+  if (!acc) return;
+  document.getElementById('p-hotkey').value = acc;
+  stopHotkeyRecording();
 }
 
 function renderCards() {
@@ -401,11 +462,57 @@ document.getElementById('modal-save').addEventListener('click', async () => {
   renderAll();
 });
 
+// ─── Preferences modal ───────────────────────────────────────────────────────
+function openPrefsModal() {
+  document.getElementById('p-hotkey').value = prefs.hotkey || '';
+  document.getElementById('p-hotkey-error').textContent = '';
+  document.getElementById('p-notify-crash').checked = prefs.notify.onCrash;
+  document.getElementById('p-notify-unexpected').checked = prefs.notify.onUnexpectedExit;
+  stopHotkeyRecording();
+  document.getElementById('prefs-backdrop').classList.add('open');
+}
+
+function closePrefsModal() {
+  stopHotkeyRecording();
+  document.getElementById('prefs-backdrop').classList.remove('open');
+}
+
 // ─── Titlebar controls ────────────────────────────────────────────────────────
 document.getElementById('btn-add').addEventListener('click', () => openModal());
 document.getElementById('btn-minimize').addEventListener('click', () => window.api.minimize());
 document.getElementById('btn-hide').addEventListener('click', () => window.api.hide());
 document.getElementById('btn-open-logs').addEventListener('click', () => window.api.openLogDir());
+document.getElementById('btn-prefs').addEventListener('click', openPrefsModal);
+document.getElementById('prefs-close').addEventListener('click', closePrefsModal);
+document.getElementById('prefs-cancel').addEventListener('click', closePrefsModal);
+document.getElementById('prefs-backdrop').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closePrefsModal();
+});
+document.getElementById('p-hotkey-record').addEventListener('click', () => {
+  if (hotkeyRecording) stopHotkeyRecording(true);
+  else startHotkeyRecording();
+});
+document.getElementById('p-hotkey-clear').addEventListener('click', () => {
+  stopHotkeyRecording();
+  document.getElementById('p-hotkey').value = '';
+});
+document.getElementById('prefs-save').addEventListener('click', async () => {
+  const hotkey = document.getElementById('p-hotkey').value.trim();
+  const updated = {
+    hotkey,
+    notify: {
+      onCrash: document.getElementById('p-notify-crash').checked,
+      onUnexpectedExit: document.getElementById('p-notify-unexpected').checked,
+    },
+  };
+  const result = await window.api.savePrefs(updated);
+  if (!result.ok && result.error === 'hotkey_conflict') {
+    document.getElementById('p-hotkey-error').textContent = 'That shortcut is already in use — try another.';
+    return;
+  }
+  prefs = updated;
+  closePrefsModal();
+});
 
 document.getElementById('btn-export').addEventListener('click', async () => {
   await window.api.exportConfig();

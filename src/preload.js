@@ -22,6 +22,10 @@ contextBridge.exposeInMainWorld('api', {
   exportConfig: () => ipcRenderer.invoke('export-config'),
   importConfig: () => ipcRenderer.invoke('import-config'),
 
+  // Preferences
+  loadPrefs: () => ipcRenderer.invoke('load-prefs'),
+  savePrefs: (data) => ipcRenderer.invoke('save-prefs', data),
+
   // Events from main → renderer
   onProcessExited: (cb) => ipcRenderer.on('process-exited', (_, data) => cb(data)),
   onProcessOutput: (cb) => ipcRenderer.on('process-output', (_, data) => cb(data)),
