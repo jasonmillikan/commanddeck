@@ -186,6 +186,20 @@ function logLine(logFile, line) {
   fs.appendFileSync(logFile, `[${ts}] ${line}\n`);
 }
 
+function notifyProcessExit(label, code, wasUserKilled, type) {
+  if (wasUserKilled || type === 'toggle-on') return;
+  let body;
+  if (code !== 0 && prefs.notify?.onCrash) {
+    body = `"${label}" stopped with an error (code ${code})`;
+  } else if (code === 0 && prefs.notify?.onUnexpectedExit) {
+    body = `"${label}" exited unexpectedly`;
+  }
+  if (!body) return;
+  const n = new Notification({ title: 'CommandDeck', body });
+  n.on('click', () => { mainWindow?.show(); mainWindow?.focus(); });
+  n.show();
+}
+
 function spawnCommand(commandId, label, cmdString, type) {
   const ts = Date.now();
   const logFile = path.join(LOG_DIR, `${commandId}-${ts}.log`);
@@ -220,6 +234,7 @@ function spawnCommand(commandId, label, cmdString, type) {
         if (code !== 0) alertState = 'red';
         else if (alertState !== 'red') alertState = 'amber';
       }
+      notifyProcessExit(label, code, wasUserKilled, type);
       updateTrayIcon();
     });
   } else {
@@ -245,6 +260,7 @@ function spawnCommand(commandId, label, cmdString, type) {
         if (code !== 0) alertState = 'red';
         else if (alertState !== 'red') alertState = 'amber';
       }
+      notifyProcessExit(label, code, wasUserKilled, type);
       if (type === 'toggle-on' && code === 0) {
         activeTogglesMeta.set(commandId, { startedAt: entry.startedAt, logFile });
         lastSessionToggles.delete(commandId);
