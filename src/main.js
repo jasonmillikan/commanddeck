@@ -137,14 +137,7 @@ function createTray() {
   ]);
 
   tray.setContextMenu(contextMenu);
-  tray.on('click', () => {
-    if (mainWindow.isVisible()) {
-      mainWindow.hide();
-    } else {
-      mainWindow.show();
-      mainWindow.focus();
-    }
-  });
+  tray.on('click', toggleWindow);
 }
 
 function killAllProcesses() {
