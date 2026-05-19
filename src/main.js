@@ -1,10 +1,11 @@
-const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, shell } = require('electron');
+const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, shell, dialog } = require('electron');
 const { spawn, exec } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
 
 const { buildTrayIcon, buildAppIcon } = require('./tray-icon');
+const { loadState, saveState } = require('./state');
 
 // null = no alert; 'red' = crash (non-zero exit); 'amber' = unexpected clean exit
 let alertState = null;
@@ -15,12 +16,19 @@ let alertState = null;
 // so reading entry.userKilled inside the exit event would always see undefined.
 const killedByUser = new Set();
 
-// commandIds of toggle commands currently switched on (no live PID — toggle-on exits immediately)
-const activeToggles = new Set();
-
 // ─── Config file path ────────────────────────────────────────────────────────
 const CONFIG_PATH = path.join(os.homedir(), '.commanddeck', 'commands.json');
 const LOG_DIR = path.join(os.homedir(), '.commanddeck', 'logs');
+const STATE_PATH = path.join(os.homedir(), '.commanddeck', 'state.json');
+
+// commandId → { startedAt, logFile } — verified active this session
+const activeTogglesMeta = new Map();
+// commandIds active last session, not yet verified (remember-only)
+const lastSessionToggles = new Set();
+
+function saveCurrentState() {
+  saveState(STATE_PATH, [...activeTogglesMeta.keys(), ...lastSessionToggles]);
+}
 
 function ensureConfigDir() {
   const dir = path.dirname(CONFIG_PATH);
@@ -28,6 +36,9 @@ function ensureConfigDir() {
   if (!fs.existsSync(LOG_DIR)) fs.mkdirSync(LOG_DIR, { recursive: true });
   if (!fs.existsSync(CONFIG_PATH)) {
     fs.writeFileSync(CONFIG_PATH, JSON.stringify({ commands: [] }, null, 2));
+  }
+  if (!fs.existsSync(STATE_PATH)) {
+    fs.writeFileSync(STATE_PATH, JSON.stringify({ toggles: {} }, null, 2));
   }
 }
 
@@ -127,8 +138,31 @@ function killAllProcesses() {
 
 function updateTrayIcon() {
   if (!tray) return;
-  const running = liveProcesses.size + activeToggles.size;
+  const running = liveProcesses.size + activeTogglesMeta.size + lastSessionToggles.size;
   tray.setImage(buildTrayIcon(running, alertState));
+}
+
+function restoreToggleState() {
+  const state = loadState(STATE_PATH);
+  const cfg = loadConfig();
+  const commandMap = new Map(cfg.commands.map(c => [c.id, c]));
+
+  for (const [commandId, active] of Object.entries(state.toggles)) {
+    if (!active) continue;
+    const cmd = commandMap.get(commandId);
+    if (!cmd || cmd.type !== 'toggle') continue;
+
+    if (cmd.autoRestore) {
+      try {
+        spawnCommand(commandId, cmd.label, cmd.onCmd, 'toggle-on');
+      } catch (err) {
+        console.error(`[restore] Failed to spawn ${commandId}:`, err.message);
+      }
+    } else {
+      lastSessionToggles.add(commandId);
+    }
+  }
+  updateTrayIcon();
 }
 
 // ─── Process helpers ─────────────────────────────────────────────────────────
@@ -197,7 +231,14 @@ function spawnCommand(commandId, label, cmdString, type) {
         if (code !== 0) alertState = 'red';
         else if (alertState !== 'red') alertState = 'amber';
       }
-      if (type === 'toggle-on' && code === 0) activeToggles.add(commandId);
+      if (type === 'toggle-on' && code === 0) {
+        activeTogglesMeta.set(commandId, { startedAt: entry.startedAt, logFile });
+        lastSessionToggles.delete(commandId);
+        saveCurrentState();
+      } else if (type === 'toggle-on') {
+        lastSessionToggles.delete(commandId);
+        saveCurrentState();
+      }
       updateTrayIcon();
     });
   }
@@ -226,7 +267,17 @@ ipcMain.handle('get-live-processes', () => {
   const result = {};
   for (const [pid, entry] of liveProcesses.entries()) {
     result[entry.commandId] = result[entry.commandId] || [];
-    result[entry.commandId].push({ pid, startedAt: entry.startedAt, logFile: entry.logFile });
+    result[entry.commandId].push({ pid, startedAt: entry.startedAt, logFile: entry.logFile, lastSession: false });
+  }
+  for (const [commandId, meta] of activeTogglesMeta.entries()) {
+    if (!result[commandId]) {
+      result[commandId] = [{ pid: null, startedAt: meta.startedAt, logFile: meta.logFile, lastSession: false }];
+    }
+  }
+  for (const commandId of lastSessionToggles) {
+    if (!result[commandId]) {
+      result[commandId] = [{ pid: null, startedAt: null, logFile: null, lastSession: true }];
+    }
   }
   return result;
 });
@@ -242,7 +293,9 @@ ipcMain.handle('run-command', async (_, { commandId, label, cmdString, type }) =
     const logFile = path.join(LOG_DIR, `${commandId}-${ts}.log`);
     const result = await runOneShot(cmdString, logFile);
     if (result.ok) {
-      activeToggles.delete(commandId);
+      activeTogglesMeta.delete(commandId);
+      lastSessionToggles.delete(commandId);
+      saveCurrentState();
       updateTrayIcon();
     }
     return { ok: result.ok, logFile };
@@ -276,24 +329,48 @@ ipcMain.handle('open-log-dir', () => {
 ipcMain.handle('window-minimize', () => mainWindow.minimize());
 ipcMain.handle('window-hide', () => mainWindow.hide());
 
-ipcMain.handle('export-config', (_, { filePath }) => {
+ipcMain.handle('export-config', async () => {
+  const ts = new Date().toISOString().slice(0, 10);
+  const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+    defaultPath: path.join(os.homedir(), `commanddeck-backup-${ts}.json`),
+    filters: [{ name: 'JSON', extensions: ['json'] }],
+  });
+  if (canceled || !filePath) return { ok: false, canceled: true };
   try {
-    const data = loadConfig();
-    fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+    fs.writeFileSync(filePath, JSON.stringify(loadConfig(), null, 2));
     return { ok: true };
   } catch (e) {
+    dialog.showErrorBox('Export failed', e.message);
     return { ok: false, error: e.message };
   }
 });
 
-ipcMain.handle('import-config', (_, { filePath }) => {
+ipcMain.handle('import-config', async () => {
+  const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+    filters: [{ name: 'JSON', extensions: ['json'] }],
+    properties: ['openFile'],
+  });
+  if (canceled || !filePaths.length) return { ok: false, canceled: true };
+  let data;
   try {
-    const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-    saveConfig(data);
-    return { ok: true, data };
+    data = JSON.parse(fs.readFileSync(filePaths[0], 'utf8'));
   } catch (e) {
+    dialog.showErrorBox('Import failed', `Could not read file: ${e.message}`);
     return { ok: false, error: e.message };
   }
+  const current = loadConfig();
+  const count = (current.commands || []).length;
+  const { response } = await dialog.showMessageBox(mainWindow, {
+    type: 'warning',
+    buttons: ['Continue', 'Cancel'],
+    defaultId: 1,
+    cancelId: 1,
+    message: `This will replace your ${count} current command${count === 1 ? '' : 's'}.`,
+    detail: 'This cannot be undone.',
+  });
+  if (response !== 0) return { ok: false, canceled: true };
+  saveConfig(data);
+  return { ok: true, data };
 });
 
 // ─── App lifecycle ────────────────────────────────────────────────────────────
@@ -302,7 +379,10 @@ app.whenReady().then(() => {
   ensureConfigDir();
   createWindow();
   createTray();
-  updateTrayIcon(); // set idle state immediately (liveProcesses is empty on fresh start)
+  // Auto-restore spawns run before the renderer is ready. IPC events (process-exited,
+  // process-output) may be dropped if the renderer hasn't loaded yet — this is safe
+  // because the renderer re-derives toggle state from getLiveProcesses() on boot.
+  restoreToggleState();
 });
 
 app.on('window-all-closed', (e) => {

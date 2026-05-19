@@ -276,6 +276,15 @@ body { font-family: var(--font-ui); font-size: 14px; display: flex; flex-directi
   box-shadow: 0 0 6px var(--accent);
   animation: pulse 2s infinite;
 }
+.meta-dot.last-session {
+  background: var(--warn);
+  opacity: 0.55;
+}
+.meta-last-session {
+  color: var(--warn);
+  opacity: 0.8;
+  font-style: italic;
+}
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }
@@ -416,6 +425,22 @@ body { font-family: var(--font-ui); font-size: 14px; display: flex; flex-directi
 .modal-body input:focus, .modal-body select:focus { border-color: var(--accent2); }
 .modal-body select { cursor: pointer; }
 .required { color: var(--accent); }
+.checkbox-label {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-mid);
+}
+.checkbox-label input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--accent);
+  cursor: pointer;
+  flex-shrink: 0;
+}
 
 .modal-footer {
   display: flex;

@@ -19,8 +19,8 @@ contextBridge.exposeInMainWorld('api', {
   hide: () => ipcRenderer.invoke('window-hide'),
 
   // Import / Export
-  exportConfig: (filePath) => ipcRenderer.invoke('export-config', { filePath }),
-  importConfig: (filePath) => ipcRenderer.invoke('import-config', { filePath }),
+  exportConfig: () => ipcRenderer.invoke('export-config'),
+  importConfig: () => ipcRenderer.invoke('import-config'),
 
   // Events from main → renderer
   onProcessExited: (cb) => ipcRenderer.on('process-exited', (_, data) => cb(data)),

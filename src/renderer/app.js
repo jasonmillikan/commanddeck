@@ -91,14 +91,22 @@ function renderCard(cmd) {
   const displayCmd = running && cmd.type === 'toggle'
     ? (cmd.offCmd || cmd.onCmd)
     : (cmd.onCmd || cmd.launchCmd || '');
+  const isLastSession = (liveMap[cmd.id] || [])[0]?.lastSession === true;
 
-  const metaHtml = running ? `
+  let metaHtml;
+  if (!running) {
+    metaHtml = `<div class="card-meta"><div class="meta-dot"></div><span>idle</span></div>`;
+  } else if (isLastSession) {
+    metaHtml = `<div class="card-meta"><div class="meta-dot last-session"></div><span class="meta-last-session">last session</span></div>`;
+  } else {
+    metaHtml = `
     <div class="card-meta">
       <div class="meta-dot live"></div>
       ${pid ? `<span class="meta-pid">PID ${pid}</span>` : ''}
       ${startedAt ? `<span class="meta-time">since ${formatTime(startedAt)}</span>` : ''}
     </div>
-  ` : `<div class="card-meta"><div class="meta-dot"></div><span>idle</span></div>`;
+  `;
+  }
 
   // Bottom action buttons vary by type and state
   let actionsHtml = '';
@@ -265,11 +273,11 @@ async function startCommand(cmd) {
   if (result.ok) {
     if (!liveMap[cmd.id]) liveMap[cmd.id] = [];
     if (result.pid) {
-      liveMap[cmd.id] = [{ pid: result.pid, startedAt: result.startedAt, logFile: result.logFile }];
+      liveMap[cmd.id] = [{ pid: result.pid, startedAt: result.startedAt, logFile: result.logFile, lastSession: false }];
     }
     // For toggle-on (one-shot), mark as "active" with no PID
     if (type === 'toggle-on') {
-      liveMap[cmd.id] = [{ pid: null, startedAt: new Date().toISOString(), logFile: result.logFile }];
+      liveMap[cmd.id] = [{ pid: null, startedAt: new Date().toISOString(), logFile: result.logFile, lastSession: false }];
     }
   }
   renderAll();
@@ -321,6 +329,7 @@ function openModal(cmd = null) {
   document.getElementById('f-on').value = cmd?.onCmd || cmd?.launchCmd || '';
   document.getElementById('f-off').value = cmd?.offCmd || '';
   document.getElementById('f-group').value = cmd?.group || '';
+  document.getElementById('f-auto-restore').checked = cmd?.autoRestore || false;
   updateModalFields();
   document.getElementById('modal-backdrop').classList.add('open');
   document.getElementById('f-label').focus();
@@ -330,15 +339,21 @@ function updateModalFields() {
   const type = document.getElementById('f-type').value;
   const onLabel = document.getElementById('f-on-label');
   const offRow = document.getElementById('f-off-row');
+  const autoRestoreRow = document.getElementById('f-auto-restore-row');
   if (type === 'toggle') {
     onLabel.firstChild.textContent = 'ON Command ';
     offRow.style.display = '';
+    autoRestoreRow.style.display = '';
   } else if (type === 'launcher') {
     onLabel.firstChild.textContent = 'Launch Command ';
     offRow.style.display = 'none';
+    autoRestoreRow.style.display = 'none';
+    document.getElementById('f-auto-restore').checked = false;
   } else {
     onLabel.firstChild.textContent = 'Command ';
     offRow.style.display = 'none';
+    autoRestoreRow.style.display = 'none';
+    document.getElementById('f-auto-restore').checked = false;
   }
 }
 
@@ -367,7 +382,11 @@ document.getElementById('modal-save').addEventListener('click', async () => {
     note: document.getElementById('f-note').value.trim(),
     type,
     group: document.getElementById('f-group').value.trim(),
-    ...(type === 'toggle'    ? { onCmd, offCmd: document.getElementById('f-off').value.trim() } : {}),
+    ...(type === 'toggle' ? {
+      onCmd,
+      offCmd: document.getElementById('f-off').value.trim(),
+      autoRestore: document.getElementById('f-auto-restore').checked,
+    } : {}),
     ...(type === 'launcher'  ? { launchCmd: onCmd } : {}),
     ...(type === 'foreground'? { onCmd } : {}),
   };
@@ -390,24 +409,12 @@ document.getElementById('btn-hide').addEventListener('click', () => window.api.h
 document.getElementById('btn-open-logs').addEventListener('click', () => window.api.openLogDir());
 
 document.getElementById('btn-export').addEventListener('click', async () => {
-  const ts = new Date().toISOString().slice(0,10);
-  const filePath = `${window.require ? '' : '/tmp/'}commanddeck-export-${ts}.json`;
-  // Simple: prompt for path via a quick hack (full dialog needs dialog API — future work)
-  const path = prompt('Export to file path:', `~/commanddeck-export-${ts}.json`);
-  if (!path) return;
-  const expanded = path.replace('~', window.homeDir || '/tmp');
-  const result = await window.api.exportConfig(expanded);
-  if (result.ok) alert(`Exported to ${expanded}`);
-  else alert('Export failed: ' + result.error);
+  await window.api.exportConfig();
 });
 
 document.getElementById('btn-import').addEventListener('click', async () => {
-  const path = prompt('Import from file path:');
-  if (!path) return;
-  const expanded = path.replace('~', '/home/' + (window.username || 'user'));
-  const result = await window.api.importConfig(expanded);
+  const result = await window.api.importConfig();
   if (result.ok) { config = result.data; renderAll(); }
-  else alert('Import failed: ' + result.error);
 });
 
 // ─── Search ───────────────────────────────────────────────────────────────────
