@@ -108,7 +108,7 @@ function createTray() {
     },
     { type: 'separator' },
     {
-      label: 'Quit (kill all managed processes)',
+      label: 'Quit (stop foreground processes)',
       click: () => {
         killAllProcesses();
         app.exit(0);
@@ -128,9 +128,10 @@ function createTray() {
 }
 
 function killAllProcesses() {
-  for (const [pid] of liveProcesses.entries()) {
+  for (const [pid, entry] of liveProcesses.entries()) {
+    if (entry.type === 'launcher') continue;
     try {
-      process.kill(pid, 'SIGTERM');
+      process.kill(-pid, 'SIGTERM');
     } catch {}
   }
   liveProcesses.clear();
