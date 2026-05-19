@@ -21,6 +21,7 @@
       <button class="tb-btn" id="btn-open-logs" title="Open log directory">⌂</button>
       <button class="tb-btn" id="btn-export" title="Export config">↑</button>
       <button class="tb-btn" id="btn-import" title="Import config">↓</button>
+      <button class="tb-btn" id="btn-prefs" title="Preferences">⚙</button>
       <button class="tb-btn" id="btn-minimize" title="Minimize">−</button>
       <button class="tb-btn tb-btn-close" id="btn-hide" title="Hide to tray">×</button>
     </div>
@@ -99,6 +100,39 @@
       <div class="modal-footer">
         <button class="btn-secondary" id="modal-cancel">Cancel</button>
         <button class="btn-primary" id="modal-save">Save Command</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Preferences -->
+  <div class="modal-backdrop" id="prefs-backdrop">
+    <div class="modal" id="prefs-modal">
+      <div class="modal-header">
+        <span>Preferences</span>
+        <button class="modal-close" id="prefs-close">×</button>
+      </div>
+      <div class="modal-body">
+        <label>Global Hotkey
+          <div class="hotkey-row">
+            <input type="text" id="p-hotkey" readonly placeholder="None" />
+            <button class="btn-secondary" id="p-hotkey-record">Record</button>
+            <button class="btn-secondary" id="p-hotkey-clear">×</button>
+          </div>
+          <span class="field-error" id="p-hotkey-error"></span>
+        </label>
+        <div class="prefs-section-label">NOTIFICATIONS</div>
+        <label class="checkbox-label">
+          <input type="checkbox" id="p-notify-crash" />
+          Notify when a process crashes (non-zero exit)
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="p-notify-unexpected" />
+          Notify when a process exits unexpectedly (zero exit)
+        </label>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" id="prefs-cancel">Cancel</button>
+        <button class="btn-primary" id="prefs-save">Save Preferences</button>
       </div>
     </div>
   </div>
