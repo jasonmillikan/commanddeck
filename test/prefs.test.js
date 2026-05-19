@@ -35,3 +35,12 @@ test('loadPrefs handles malformed JSON gracefully', () => {
   assert.deepEqual(result, { ...DEFAULTS, notify: { ...DEFAULTS.notify } });
   fs.unlinkSync(tmp);
 });
+
+test('loadPrefs falls back to default notify when notify field is not an object', () => {
+  const tmp = path.join(os.tmpdir(), `prefs-test-${Date.now()}.json`);
+  fs.writeFileSync(tmp, JSON.stringify({ hotkey: 'Ctrl+A', notify: 'crash-only' }));
+  const result = loadPrefs(tmp);
+  assert.equal(result.hotkey, 'Ctrl+A');
+  assert.deepEqual(result.notify, DEFAULTS.notify);
+  fs.unlinkSync(tmp);
+});

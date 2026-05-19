@@ -11,11 +11,13 @@ const DEFAULTS = {
 function loadPrefs(prefsPath) {
   try {
     const data = JSON.parse(fs.readFileSync(prefsPath, 'utf8'));
-    return {
-      ...DEFAULTS,
-      ...data,
-      notify: { ...DEFAULTS.notify, ...(data.notify || {}) },
-    };
+    if (!data || typeof data !== 'object' || Array.isArray(data)) {
+      return { ...DEFAULTS, notify: { ...DEFAULTS.notify } };
+    }
+    const notify = (data.notify && typeof data.notify === 'object' && !Array.isArray(data.notify))
+      ? data.notify
+      : {};
+    return { ...DEFAULTS, ...data, notify: { ...DEFAULTS.notify, ...notify } };
   } catch {
     return { ...DEFAULTS, notify: { ...DEFAULTS.notify } };
   }
