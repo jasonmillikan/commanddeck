@@ -178,7 +178,7 @@ function spawnCommand(commandId, label, cmdString, type) {
   logLine(logFile, `Starting: ${cmdString}`);
 
   const child = spawn('bash', ['-c', cmdString], {
-    detached: type === 'launcher', // detach launchers so they outlive us
+    detached: true, // own process group so -pid group kill reaches bash's children
     stdio: type === 'launcher' ? 'ignore' : ['ignore', 'pipe', 'pipe'],
   });
 
@@ -306,7 +306,7 @@ ipcMain.handle('run-command', async (_, { commandId, label, cmdString, type }) =
 ipcMain.handle('kill-process', (_, { pid }) => {
   try {
     killedByUser.add(pid);
-    process.kill(pid, 'SIGTERM');
+    process.kill(-pid, 'SIGTERM');
     liveProcesses.delete(pid);
     updateTrayIcon();
     return { ok: true };
