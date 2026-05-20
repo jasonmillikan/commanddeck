@@ -8,10 +8,19 @@
     "dev": "electron . --dev",
     "test": "node --test test/*.test.js"
   },
-  "keywords": ["electron", "terminal", "commands", "productivity", "linux"],
+  "keywords": [
+    "electron",
+    "terminal",
+    "commands",
+    "productivity",
+    "linux"
+  ],
   "author": "Jason Millikan",
   "license": "MIT",
   "devDependencies": {
     "electron": "^29.0.0"
+  },
+  "dependencies": {
+    "sortablejs": "^1.15.7"
   }
 }
