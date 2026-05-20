@@ -20,10 +20,27 @@ const killedByUser = new Set();
 let prefs = {};
 
 // ─── Config file path ────────────────────────────────────────────────────────
-const CONFIG_PATH = path.join(os.homedir(), '.commanddeck', 'commands.json');
-const LOG_DIR = path.join(os.homedir(), '.commanddeck', 'logs');
-const STATE_PATH = path.join(os.homedir(), '.commanddeck', 'state.json');
-const PREFS_PATH = path.join(os.homedir(), '.commanddeck', 'prefs.json');
+const CONFIG_PATH    = path.join(os.homedir(), '.commanddeck', 'commands.json');
+const LOG_DIR        = path.join(os.homedir(), '.commanddeck', 'logs');
+const STATE_PATH     = path.join(os.homedir(), '.commanddeck', 'state.json');
+const PREFS_PATH     = path.join(os.homedir(), '.commanddeck', 'prefs.json');
+const AUTOSTART_PATH = path.join(os.homedir(), '.config', 'autostart', 'commanddeck.desktop');
+
+function autostartDesktopContent() {
+  // In dev (npm start) we need to pass the app directory to the electron binary.
+  // In a packaged build, the executable is self-contained.
+  const exec = app.isPackaged
+    ? `"${process.execPath}"`
+    : `"${process.execPath}" "${app.getAppPath()}"`;
+  return [
+    '[Desktop Entry]',
+    'Type=Application',
+    'Name=CommandDeck',
+    `Exec=${exec}`,
+    'StartupNotify=false',
+    'X-GNOME-Autostart-enabled=true',
+  ].join('\n') + '\n';
+}
 
 // commandId → { startedAt, logFile } — verified active this session
 const activeTogglesMeta = new Map();
@@ -290,6 +307,16 @@ function runOneShot(cmdString, logFile) {
 ipcMain.handle('load-config', () => loadConfig());
 ipcMain.handle('save-config', (_, data) => { saveConfig(data); return true; });
 ipcMain.handle('load-prefs', () => loadPrefs(PREFS_PATH));
+ipcMain.handle('get-autostart', () => fs.existsSync(AUTOSTART_PATH));
+ipcMain.handle('set-autostart', (_, enabled) => {
+  if (enabled) {
+    fs.mkdirSync(path.dirname(AUTOSTART_PATH), { recursive: true });
+    fs.writeFileSync(AUTOSTART_PATH, autostartDesktopContent());
+  } else if (fs.existsSync(AUTOSTART_PATH)) {
+    fs.unlinkSync(AUTOSTART_PATH);
+  }
+  return { ok: true };
+});
 
 ipcMain.handle('save-prefs', (_, data) => {
   globalShortcut.unregisterAll();

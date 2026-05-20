@@ -103,6 +103,10 @@ All calls go through `window.api.*`:
 | `exportConfig()` | Opens native Save dialog, writes config to chosen path |
 | `importConfig()` | Opens native Open dialog, confirms, loads config from chosen path |
 | `minimize()` / `hide()` | Window controls |
+| `loadPrefs()` | Returns parsed `prefs.json` |
+| `savePrefs(data)` | Writes `prefs.json`, re-registers global hotkey |
+| `getAutostart()` | Returns `true` if `~/.config/autostart/commanddeck.desktop` exists |
+| `setAutostart(enabled)` | Writes or removes the autostart `.desktop` file |
 
 Events from main → renderer via `ipcRenderer.on`:
 - `process-exited` → `{ commandId, pid, code }`
@@ -114,15 +118,15 @@ These were identified at the end of the prototype session — good starting poin
 
 1. ~~**Native file dialog**~~ — **Done.** Export uses `dialog.showSaveDialog` with a suggested default filename; import uses `dialog.showOpenDialog` + a `dialog.showMessageBox` confirmation. All file I/O and dialogs live in the main process. No `prompt()` or `alert()` calls remain in the renderer.
 
-2. ~~**Tray icon missing**~~ — **Done.** Stateful 2×2 grid icon in `src/tray-icon.js`. Generates RGBA pixel buffers at runtime (no static assets). Reflects live process count (filled squares) and shows a red/amber badge on unexpected exits. Active toggles count toward the filled-square total.
+2. ~~**Tray icon missing**~~ — **Done.** Stateful 2×2 grid of hexagon icons in `src/tray-icon.js`. Renders PNG pixel buffers at runtime (no static assets) with an embedded `sRGB` chunk so the icon color matches CSS-rendered `#4ade80` through the same color management pipeline. Reflects live process count (0–4 filled hexagons, diagonal fill order) and shows a red/amber badge dot on unexpected exits. Active toggles count toward the filled total.
 
 3. ~~**Toggle state persistence**~~ — **Done.** Per-toggle "Auto-restore on startup" checkbox (stored as `autoRestore: true` in commands.json). Auto-restore re-runs `onCmd` on startup; remember-only toggles show an amber "last session" indicator. State persisted in `~/.commanddeck/state.json` (app-managed, never exported).
 
    **Follow-on:** A `checkCmd` field per toggle (e.g., `pactl list short modules | grep module-loopback`) would allow the app to verify real system state rather than relying on last-known memory. Skipped as out of scope for this iteration.
 
-4. **Autostart `.desktop` file** — UI option to enable/disable autostart by writing to `~/.config/autostart/commanddeck.desktop`.
+4. ~~**Autostart `.desktop` file**~~ — **Done.** "Launch at login" toggle in the Preferences modal (⚙ button). Writes or removes `~/.config/autostart/commanddeck.desktop`. Works in both dev and packaged modes: in dev it points to the Electron binary in `node_modules` + the project directory; when packaged it points to the app executable directly.
 
-5. **Desktop notifications** — notify when a foreground process exits unexpectedly (Electron's `Notification` API).
+5. ~~**Desktop notifications**~~ — **Done.** Crash (non-zero exit) and unexpected clean-exit notifications via Electron's `Notification` API, each toggled independently in the Preferences modal.
 
 6. **Drag-to-reorder cards** — currently order is insertion order. HTML5 drag-and-drop or a library like Sortable.js.
 
@@ -130,7 +134,7 @@ These were identified at the end of the prototype session — good starting poin
 
 8. **Import/export UX** — use native file dialogs, add a "share board" export format.
 
-9. **Keyboard shortcuts** — global hotkey to show/hide window (Electron `globalShortcut`).
+9. ~~**Keyboard shortcuts**~~ — **Done.** Global hotkey to show/hide the window, recorded interactively in the Preferences modal and registered via Electron's `globalShortcut`.
 
 10. **Packaging** — `.deb`, AppImage, or Snap for distribution. `electron-builder` is the standard tool.
 

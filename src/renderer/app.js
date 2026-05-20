@@ -463,11 +463,12 @@ document.getElementById('modal-save').addEventListener('click', async () => {
 });
 
 // ─── Preferences modal ───────────────────────────────────────────────────────
-function openPrefsModal() {
+async function openPrefsModal() {
   document.getElementById('p-hotkey').value = prefs.hotkey || '';
   document.getElementById('p-hotkey-error').textContent = '';
   document.getElementById('p-notify-crash').checked = prefs.notify.onCrash;
   document.getElementById('p-notify-unexpected').checked = prefs.notify.onUnexpectedExit;
+  document.getElementById('p-autostart').checked = await window.api.getAutostart();
   stopHotkeyRecording();
   document.getElementById('prefs-backdrop').classList.add('open');
 }
@@ -510,6 +511,7 @@ document.getElementById('prefs-save').addEventListener('click', async () => {
     document.getElementById('p-hotkey-error').textContent = 'That shortcut is already in use — try another.';
     return;
   }
+  await window.api.setAutostart(document.getElementById('p-autostart').checked);
   prefs = updated;
   closePrefsModal();
 });

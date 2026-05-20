@@ -25,6 +25,8 @@ contextBridge.exposeInMainWorld('api', {
   // Preferences
   loadPrefs: () => ipcRenderer.invoke('load-prefs'),
   savePrefs: (data) => ipcRenderer.invoke('save-prefs', data),
+  getAutostart: () => ipcRenderer.invoke('get-autostart'),
+  setAutostart: (enabled) => ipcRenderer.invoke('set-autostart', enabled),
 
   // Events from main → renderer
   onProcessExited: (cb) => ipcRenderer.on('process-exited', (_, data) => cb(data)),
