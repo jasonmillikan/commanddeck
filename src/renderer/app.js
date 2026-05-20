@@ -55,11 +55,11 @@ async function persist() {
 
 // ─── Group list ───────────────────────────────────────────────────────────────
 function renderGroups() {
-  const groups = ['all', ...new Set(config.commands.map(c => c.group).filter(Boolean))];
+  const tags = ['all', ...new Set(config.commands.flatMap(c => c.tags || []).filter(Boolean))];
   const el = document.getElementById('group-list');
-  el.innerHTML = groups.map(g => `
-    <div class="group-item ${activeGroup === g ? 'active' : ''}" data-group="${g}">
-      ${g === 'all' ? 'All Commands' : g}
+  el.innerHTML = tags.map(t => `
+    <div class="group-item ${activeGroup === t ? 'active' : ''}" data-group="${t}">
+      ${t === 'all' ? 'All Commands' : t}
     </div>
   `).join('');
   el.querySelectorAll('.group-item').forEach(item => {
@@ -73,13 +73,13 @@ function renderGroups() {
 // ─── Cards ────────────────────────────────────────────────────────────────────
 function filteredCommands() {
   return config.commands.filter(cmd => {
-    const groupOk = activeGroup === 'all' || cmd.group === activeGroup;
+    const tagOk = activeGroup === 'all' || (cmd.tags || []).includes(activeGroup);
     const q = searchQuery.toLowerCase();
     const searchOk = !q ||
       cmd.label.toLowerCase().includes(q) ||
       (cmd.note || '').toLowerCase().includes(q) ||
       (cmd.onCmd || '').toLowerCase().includes(q);
-    return groupOk && searchOk;
+    return tagOk && searchOk;
   });
 }
 
