@@ -567,7 +567,13 @@ function closePrefsModal() {
 // ─── Titlebar controls ────────────────────────────────────────────────────────
 document.getElementById('btn-add').addEventListener('click', () => openModal());
 document.getElementById('btn-minimize').addEventListener('click', () => window.api.minimize());
+document.getElementById('btn-maximize').addEventListener('click', () => window.api.toggleMaximize());
 document.getElementById('btn-hide').addEventListener('click', () => window.api.hide());
+window.api.onWindowMaximized(isMax => {
+  const btn = document.getElementById('btn-maximize');
+  btn.textContent = isMax ? '❐' : '□';
+  btn.title = isMax ? 'Restore' : 'Maximize';
+});
 document.getElementById('btn-open-logs').addEventListener('click', () => window.api.openLogDir());
 document.getElementById('btn-prefs').addEventListener('click', openPrefsModal);
 document.getElementById('prefs-close').addEventListener('click', closePrefsModal);
