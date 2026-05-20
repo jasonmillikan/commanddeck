@@ -303,6 +303,7 @@ body { font-family: var(--font-ui); font-size: 14px; display: flex; flex-directi
 .badge-toggle  { background: rgba(34, 211, 238, 0.12); color: var(--accent2); border: 1px solid rgba(34, 211, 238, 0.2); }
 .badge-launcher{ background: rgba(251, 191, 36, 0.12); color: var(--warn);    border: 1px solid rgba(251, 191, 36, 0.2); }
 .badge-foreground{ background: rgba(74, 222, 128, 0.12); color: var(--accent); border: 1px solid rgba(74, 222, 128, 0.2); }
+.badge-cheatsheet{ background: rgba(167,139,250,0.12); color: #a78bfa; border: 1px solid rgba(167,139,250,0.2); }
 
 .card-cmd {
   margin: 0 14px 10px;
@@ -383,6 +384,7 @@ body { font-family: var(--font-ui); font-size: 14px; display: flex; flex-directi
 .card-btn-stop:hover  { color: var(--danger); }
 .card-btn-kill:hover  { color: var(--danger); background: rgba(248, 113, 113, 0.08); }
 .card-btn-log:hover   { color: var(--accent2); }
+.card-btn-view:hover  { color: var(--accent2); }
 .card-btn-edit:hover  { color: var(--warn); }
 .card-btn-delete:hover{ color: var(--danger); }
 
@@ -533,7 +535,7 @@ body { font-family: var(--font-ui); font-size: 14px; display: flex; flex-directi
   letter-spacing: 0.06em;
   color: var(--text-mid);
 }
-.modal-body input, .modal-body select {
+.modal-body input, .modal-body select, .modal-body textarea {
   background: var(--bg3);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -544,7 +546,7 @@ body { font-family: var(--font-ui); font-size: 14px; display: flex; flex-directi
   outline: none;
   transition: border-color 0.15s;
 }
-.modal-body input:focus, .modal-body select:focus { border-color: var(--accent2); }
+.modal-body input:focus, .modal-body select:focus, .modal-body textarea:focus { border-color: var(--accent2); }
 .modal-body select { cursor: pointer; }
 .required { color: var(--accent); }
 .checkbox-label {
@@ -687,3 +689,5 @@ body { font-family: var(--font-ui); font-size: 14px; display: flex; flex-directi
   padding-top: 4px;
   border-top: 1px solid var(--border);
 }
+
+#f-content { resize: vertical; min-height: 120px; line-height: 1.5; }

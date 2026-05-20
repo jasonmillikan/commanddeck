@@ -74,8 +74,14 @@
             <option value="toggle">Toggle (ON/OFF commands)</option>
             <option value="launcher">Launcher (fire &amp; forget)</option>
             <option value="foreground">Foreground (runs in managed terminal)</option>
+            <option value="cheatsheet">Cheatsheet (read-only reference)</option>
           </select>
         </label>
+        <div id="f-content-row">
+          <label>Content <span class="required">*</span>
+            <textarea id="f-content" rows="6" placeholder="Enter reference content…"></textarea>
+          </label>
+        </div>
         <div id="f-on-row">
           <label id="f-on-label">ON Command <span class="required">*</span>
             <input type="text" id="f-on" placeholder="e.g. pactl load-module module-loopback latency_msec=1" />
