@@ -128,6 +128,9 @@ function createWindow() {
     alertState = null;
     updateTrayIcon();
   });
+
+  mainWindow.on('maximize', () => mainWindow.webContents.send('window-maximized', true));
+  mainWindow.on('unmaximize', () => mainWindow.webContents.send('window-maximized', false));
 }
 
 function createTray() {
@@ -394,6 +397,10 @@ ipcMain.handle('open-log-dir', () => {
 
 ipcMain.handle('window-minimize', () => mainWindow.minimize());
 ipcMain.handle('window-hide', () => mainWindow.hide());
+ipcMain.handle('window-maximize', () => {
+  if (mainWindow.isMaximized()) mainWindow.unmaximize();
+  else mainWindow.maximize();
+});
 
 ipcMain.handle('export-config', async () => {
   const ts = new Date().toISOString().slice(0, 10);

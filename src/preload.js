@@ -17,6 +17,8 @@ contextBridge.exposeInMainWorld('api', {
   // Window controls
   minimize: () => ipcRenderer.invoke('window-minimize'),
   hide: () => ipcRenderer.invoke('window-hide'),
+  toggleMaximize: () => ipcRenderer.invoke('window-maximize'),
+  onWindowMaximized: (cb) => ipcRenderer.on('window-maximized', (_, v) => cb(v)),
 
   // Import / Export
   exportConfig: () => ipcRenderer.invoke('export-config'),
