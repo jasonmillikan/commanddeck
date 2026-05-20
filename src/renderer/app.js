@@ -664,6 +664,7 @@ document.getElementById('p-hotkey-clear').addEventListener('click', () => {
 document.getElementById('prefs-save').addEventListener('click', async () => {
   const hotkey = document.getElementById('p-hotkey').value.trim();
   const updated = {
+    ...prefs,
     hotkey,
     notify: {
       onCrash: document.getElementById('p-notify-crash').checked,

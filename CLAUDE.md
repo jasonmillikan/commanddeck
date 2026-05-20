@@ -89,11 +89,11 @@ This is the core data model — get this right and everything else follows.
     },
     {
       "id": "jkl012",
-      "label": "Git Workflows",
-      "note": "Day-to-day git commands",
+      "label": "Network Info",
+      "note": "Commands for checking IP and network interfaces",
       "type": "cheatsheet",
-      "tags": ["Dev"],
-      "content": "git add -p\ngit commit -m '...'\ngit push"
+      "tags": ["Network"],
+      "content": "ip addr show\nip route\nss -tulnp"
     }
   ]
 }
