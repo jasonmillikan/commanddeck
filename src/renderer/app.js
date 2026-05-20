@@ -159,17 +159,20 @@ function renderCard(cmd) {
 
   return `
     <div class="card ${running ? 'running' : ''}" data-id="${cmd.id}">
-      <div class="card-header">
-        <div class="card-info">
-          <div class="card-label">${escHtml(cmd.label)}</div>
-          ${cmd.note ? `<div class="card-note">${escHtml(cmd.note)}</div>` : ''}
+      <div class="card-drag-handle">⠿</div>
+      <div class="card-body">
+        <div class="card-header">
+          <div class="card-info">
+            <div class="card-label">${escHtml(cmd.label)}</div>
+            ${cmd.note ? `<div class="card-note">${escHtml(cmd.note)}</div>` : ''}
+          </div>
+          ${badgeFor(cmd.type)}
         </div>
-        ${badgeFor(cmd.type)}
+        <div class="card-cmd" title="${escHtml(displayCmd)}">${escHtml(displayCmd)}</div>
+        ${metaHtml}
+        ${controlHtml}
+        <div class="card-actions">${actionsHtml}</div>
       </div>
-      <div class="card-cmd" title="${escHtml(displayCmd)}">${escHtml(displayCmd)}</div>
-      ${metaHtml}
-      ${controlHtml}
-      <div class="card-actions">${actionsHtml}</div>
     </div>
   `;
 }
