@@ -258,7 +258,7 @@ function renderCards() {
       <div class="empty-state">
         <div class="empty-state-icon">⬡</div>
         <div class="empty-state-text">${config.commands.length === 0 ? 'No commands yet' : 'No matches'}</div>
-        <div class="empty-state-hint">${config.commands.length === 0 ? 'Click "+ New Command" to get started' : 'Try a different search or group'}</div>
+        <div class="empty-state-hint">${config.commands.length === 0 ? 'Click "+ New Command" to get started' : 'Try a different search or tag'}</div>
       </div>`;
     if (sortableInstance) { sortableInstance.destroy(); sortableInstance = null; }
     return;

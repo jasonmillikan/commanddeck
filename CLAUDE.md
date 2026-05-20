@@ -65,7 +65,7 @@ This is the core data model — get this right and everything else follows.
       "label": "Audio Loopback",
       "note": "Routes mic to audio output (useful for hearing onself while using headphones)",
       "type": "toggle",         // "toggle" | "launcher" | "foreground"
-      "group": "Audio",         // optional, used for sidebar grouping
+      "tags": ["Audio"],        // optional, used for sidebar grouping
       "onCmd": "pactl load-module module-loopback latency_msec=1",
       "offCmd": "pactl unload-module module-loopback"
     },
@@ -73,14 +73,14 @@ This is the core data model — get this right and everything else follows.
       "id": "def456",
       "label": "Steam",
       "type": "launcher",
-      "group": "Gaming",
+      "tags": ["Gaming"],
       "launchCmd": "flatpak run com.valveSoftware.Steam"
     },
     {
       "id": "ghi789",
       "label": "Syncthing",
       "type": "foreground",
-      "group": "Sync",
+      "tags": ["Sync"],
       "onCmd": "syncthing -allow-newer-config"
     }
   ]
@@ -130,7 +130,7 @@ These were identified at the end of the prototype session — good starting poin
 
 6. **Drag-to-reorder cards** — currently order is insertion order. HTML5 drag-and-drop or a library like Sortable.js.
 
-7. **Card groups as collapsible sections** — currently groups just filter; could render as labeled collapsible sections on the board.
+7. **Card groups as collapsible sections** — currently tags just filter; could render as labeled collapsible sections on the board.
 
 8. **Import/export UX** — use native file dialogs, add a "share board" export format.
 
