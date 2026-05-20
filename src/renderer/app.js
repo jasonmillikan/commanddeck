@@ -9,6 +9,7 @@ let searchQuery = '';
 let editingId = null;
 let drawerCommandId = null;
 let drawerLogFile = null;
+let sortableInstance = null;
 let prefs = { hotkey: '', notify: { onCrash: true, onUnexpectedExit: false } };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -240,6 +241,13 @@ function handleHotkeyCapture(e) {
   stopHotkeyRecording();
 }
 
+async function handleDragEnd() {
+  const container = document.getElementById('cards-container');
+  const newVisibleIds = [...container.querySelectorAll('[data-id]')].map(el => el.dataset.id);
+  config.commands = applyReorder(config.commands, newVisibleIds);
+  await persist();
+}
+
 function renderCards() {
   const container = document.getElementById('cards-container');
   const cmds = filteredCommands();
@@ -250,10 +258,17 @@ function renderCards() {
         <div class="empty-state-text">${config.commands.length === 0 ? 'No commands yet' : 'No matches'}</div>
         <div class="empty-state-hint">${config.commands.length === 0 ? 'Click "+ New Command" to get started' : 'Try a different search or group'}</div>
       </div>`;
+    if (sortableInstance) { sortableInstance.destroy(); sortableInstance = null; }
     return;
   }
   container.innerHTML = cmds.map(renderCard).join('');
   attachCardListeners();
+  if (sortableInstance) sortableInstance.destroy();
+  sortableInstance = Sortable.create(container, {
+    handle: '.card-drag-handle',
+    animation: 150,
+    onEnd: handleDragEnd,
+  });
 }
 
 function renderStats() {
