@@ -68,7 +68,7 @@ This is the core data model — get this right and everything else follows.
       "id": "abc123",           // uid(), base36 timestamp + random
       "label": "Audio Loopback",
       "note": "Routes mic to audio output (useful for hearing onself while using headphones)",
-      "type": "toggle",         // "toggle" | "launcher" | "foreground"
+      "type": "toggle",         // "toggle" | "launcher" | "foreground" | "cheatsheet"
       "tags": ["Audio"],        // optional array; a command can have multiple tags
       "onCmd": "pactl load-module module-loopback latency_msec=1",
       "offCmd": "pactl unload-module module-loopback"
