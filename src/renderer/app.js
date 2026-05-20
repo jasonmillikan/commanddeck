@@ -81,18 +81,42 @@ function filteredCommands() {
     const searchOk = !q ||
       cmd.label.toLowerCase().includes(q) ||
       (cmd.note || '').toLowerCase().includes(q) ||
-      (cmd.onCmd || '').toLowerCase().includes(q);
+      (cmd.onCmd || '').toLowerCase().includes(q) ||
+      (cmd.content || '').toLowerCase().includes(q);
     return tagOk && searchOk;
   });
 }
 
 function badgeFor(type) {
-  const map = { toggle: 'badge-toggle', launcher: 'badge-launcher', foreground: 'badge-foreground' };
-  const labels = { toggle: 'TOGGLE', launcher: 'LAUNCHER', foreground: 'FOREGROUND' };
+  const map = { toggle: 'badge-toggle', launcher: 'badge-launcher', foreground: 'badge-foreground', cheatsheet: 'badge-cheatsheet' };
+  const labels = { toggle: 'TOGGLE', launcher: 'LAUNCHER', foreground: 'FOREGROUND', cheatsheet: 'SHEET' };
   return `<span class="card-type-badge ${map[type]}">${labels[type]}</span>`;
 }
 
 function renderCard(cmd) {
+  if (cmd.type === 'cheatsheet') {
+    const previewLine = (cmd.content || '').split('\n')[0] || '';
+    return `
+      <div class="card" data-id="${cmd.id}">
+        <div class="card-drag-handle">⠿</div>
+        <div class="card-body" data-action="view" data-id="${cmd.id}">
+          <div class="card-header">
+            <div class="card-info">
+              <div class="card-label">${escHtml(cmd.label)}</div>
+              ${cmd.note ? `<div class="card-note">${escHtml(cmd.note)}</div>` : ''}
+            </div>
+            ${badgeFor(cmd.type)}
+          </div>
+          <div class="card-cmd" title="${escHtml(cmd.content || '')}">${escHtml(previewLine)}</div>
+          <div class="card-actions">
+            <button class="card-btn card-btn-view"   data-action="view"   data-id="${cmd.id}">VIEW</button>
+            <button class="card-btn card-btn-edit"   data-action="edit"   data-id="${cmd.id}">EDIT</button>
+            <button class="card-btn card-btn-delete" data-action="delete" data-id="${cmd.id}">DEL</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
   const running = commandIsRunning(cmd.id);
   const pid = getFirstPid(cmd.id);
   const startedAt = getStartedAt(cmd.id);
