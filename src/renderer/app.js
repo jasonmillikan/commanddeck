@@ -40,7 +40,10 @@ function getLogFile(id) {
 
 // ─── Config persistence ───────────────────────────────────────────────────────
 async function loadAll() {
-  config = await window.api.loadConfig();
+  const raw = await window.api.loadConfig();
+  const { commands, changed } = migrateCommands(raw.commands || []);
+  config = { ...raw, commands };
+  if (changed) await window.api.saveConfig(config);
   liveMap = await window.api.getLiveProcesses();
   prefs = await window.api.loadPrefs();
   renderAll();
