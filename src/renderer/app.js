@@ -518,7 +518,7 @@ document.getElementById('modal-save').addEventListener('click', async () => {
 
   // Flush any partially-typed tag in the input
   const tagInput = document.getElementById('f-tags-input');
-  const pending = tagInput.value.trim();
+  const pending = tagInput.value.trim().replace(/,$/, '');
   if (pending && !modalTags.includes(pending)) modalTags.push(pending);
   tagInput.value = '';
 
