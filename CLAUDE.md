@@ -57,6 +57,7 @@ This is the core data model — get this right and everything else follows.
 | Toggle | `"toggle"` | `onCmd`, `offCmd` | ON runs and exits (one-shot), OFF runs and exits. No persistent PID. Perfect for `pactl load/unload`. |
 | Launcher | `"launcher"` | `launchCmd` | Spawns detached (`detached: true`, `unref()`). App lives on after CommandDeck closes. PID tracked until exit. |
 | Foreground | `"foreground"` | `onCmd` | Spawns managed. stdout/stderr streamed to UI drawer and log file. Killable. |
+| Cheatsheet | `"cheatsheet"` | `content` | Read-only reference card. No command runs. Content displayed in the output drawer. |
 
 ## Config Schema (`~/.commanddeck/commands.json`)
 
@@ -85,6 +86,14 @@ This is the core data model — get this right and everything else follows.
       "type": "foreground",
       "tags": ["Sync"],
       "onCmd": "syncthing -allow-newer-config"
+    },
+    {
+      "id": "jkl012",
+      "label": "Git Workflows",
+      "note": "Day-to-day git commands",
+      "type": "cheatsheet",
+      "tags": ["Dev"],
+      "content": "git add -p\ngit commit -m '...'\ngit push"
     }
   ]
 }
@@ -133,13 +142,11 @@ These were identified at the end of the prototype session — good starting poin
 
 6. ~~**Drag-to-reorder cards**~~ — **Done.** Left-edge grip handle (⠿) on each card. SortableJS manages drag with `animation: 150`. Order persisted immediately to `commands.json`. Filtered-view drags work correctly — non-visible cards stay in place (`applyReorder` in `utils.js`). Tags replaced the single `group` field; old configs auto-migrate on first load.
 
-7. **Card tags as collapsible sections** — currently tags just filter; could render as labeled collapsible sections on the board.
+7. **Import/export UX** — use native file dialogs, add a "share board" export format.
 
-8. **Import/export UX** — use native file dialogs, add a "share board" export format.
+8. ~~**Keyboard shortcuts**~~ — **Done.** Global hotkey to show/hide the window, recorded interactively in the Preferences modal and registered via Electron's `globalShortcut`.
 
-9. ~~**Keyboard shortcuts**~~ — **Done.** Global hotkey to show/hide the window, recorded interactively in the Preferences modal and registered via Electron's `globalShortcut`.
-
-10. **Packaging** — `.deb`, AppImage, or Snap for distribution. `electron-builder` is the standard tool.
+9. **Packaging** — `.deb`, AppImage, or Snap for distribution. `electron-builder` is the standard tool.
 
 ## Developer Notes
 
