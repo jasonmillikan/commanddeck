@@ -603,9 +603,8 @@ body { font-family: var(--font-ui); font-size: 14px; display: flex; flex-directi
 /* ── Output Drawer ─────────────────────────────────────────────────────────── */
 .drawer {
   position: fixed;
-  bottom: -400px;
+  bottom: -100vh;
   left: 180px; right: 0;
-  height: 240px;
   background: var(--bg2);
   border-top: 1px solid var(--border2);
   display: flex;
@@ -614,6 +613,15 @@ body { font-family: var(--font-ui); font-size: 14px; display: flex; flex-directi
   transition: bottom 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .drawer.open { bottom: 0; }
+
+.drawer-resize-handle {
+  height: 5px;
+  cursor: ns-resize;
+  flex-shrink: 0;
+  background: transparent;
+  transition: background 0.15s;
+}
+.drawer-resize-handle:hover { background: var(--border2); }
 
 .drawer-header {
   display: flex;
