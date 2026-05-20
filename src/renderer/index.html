@@ -93,8 +93,11 @@
             Auto-restore on startup
           </label>
         </div>
-        <label>Group / Tag
-          <input type="text" id="f-group" placeholder="e.g. Audio, Gaming, Sync…" />
+        <label>Tags
+          <div class="tag-input-wrap" id="f-tags-wrap">
+            <input type="text" id="f-tags-input" placeholder="Add tag…" list="tags-datalist" autocomplete="off" />
+          </div>
+          <datalist id="tags-datalist"></datalist>
         </label>
       </div>
       <div class="modal-footer">
