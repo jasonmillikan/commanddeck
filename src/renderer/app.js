@@ -351,7 +351,7 @@ async function handleCardAction(action, id, checked) {
       liveMap[id] = [];
       renderAll();
     }
-  } else if (action === 'log') {
+  } else if (action === 'log' || action === 'view') {
     openDrawer(cmd);
   } else if (action === 'edit') {
     openModal(cmd);
@@ -411,12 +411,22 @@ async function stopCommand(cmd) {
 // ─── Output drawer ────────────────────────────────────────────────────────────
 function openDrawer(cmd) {
   drawerCommandId = cmd.id;
-  drawerLogFile = getLogFile(cmd.id);
+  const logBtn = document.getElementById('drawer-open-log');
   document.getElementById('drawer-title').textContent = `▸ ${cmd.label}`;
   const out = document.getElementById('drawer-output');
-  const lines = outputMap[cmd.id] || [];
-  out.textContent = lines.length ? lines.join('') : '(no output captured yet — start the command first)';
-  out.scrollTop = out.scrollHeight;
+
+  if (cmd.type === 'cheatsheet') {
+    drawerLogFile = null;
+    logBtn.style.display = 'none';
+    out.textContent = cmd.content || '(empty)';
+    out.scrollTop = 0;
+  } else {
+    drawerLogFile = getLogFile(cmd.id);
+    logBtn.style.display = '';
+    const lines = outputMap[cmd.id] || [];
+    out.textContent = lines.length ? lines.join('') : '(no output captured yet — start the command first)';
+    out.scrollTop = out.scrollHeight;
+  }
   document.getElementById('output-drawer').classList.add('open');
 }
 
