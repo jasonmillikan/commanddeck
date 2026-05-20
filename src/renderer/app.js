@@ -48,6 +48,7 @@ async function loadAll() {
   if (changed) await window.api.saveConfig(config);
   liveMap = await window.api.getLiveProcesses();
   prefs = await window.api.loadPrefs();
+  document.getElementById('output-drawer').style.height = (prefs.drawerHeight || 240) + 'px';
   renderAll();
 }
 
@@ -653,3 +654,26 @@ window.api.onProcessOutput(({ commandId, pid, text }) => {
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 loadAll();
+
+(function initDrawerResize() {
+  const handle = document.getElementById('drawer-resize-handle');
+  const drawer = document.getElementById('output-drawer');
+  handle.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    function onMove(e) {
+      const newHeight = Math.round(
+        Math.min(Math.max(window.innerHeight - e.clientY, 100), window.innerHeight * 0.6)
+      );
+      drawer.style.height = newHeight + 'px';
+    }
+    function onUp() {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      const newHeight = parseInt(drawer.style.height, 10);
+      prefs = { ...prefs, drawerHeight: newHeight };
+      window.api.savePrefs(prefs);
+    }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+})();
