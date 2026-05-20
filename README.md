@@ -25,7 +25,10 @@ Features:
 - ✅ Config saved to `~/.commanddeck/commands.json` (plain JSON, version-control friendly)
 - ✅ Export / Import config
 - ✅ Group/tag commands, search/filter
-- ✅ Survives app restarts (config is persistent)
+- ✅ Toggle state persists across restarts (auto-restore on startup)
+- ✅ Global hotkey to show/hide window (configurable in Preferences)
+- ✅ Desktop notifications on process crash or unexpected exit (configurable in Preferences)
+- ✅ Launch at login (configurable in Preferences)
 
 ---
 
@@ -114,35 +117,17 @@ All command output is saved to `~/.commanddeck/logs/`. Each run gets its own tim
 
 ---
 
-## Autostart on login (Ubuntu)
+## Autostart on login
 
-To have CommandDeck launch when you log in:
-
-```bash
-mkdir -p ~/.config/autostart
-cat > ~/.config/autostart/commanddeck.desktop << EOF
-[Desktop Entry]
-Type=Application
-Name=CommandDeck
-Exec=/usr/bin/env bash -c 'cd /path/to/commanddeck && npm start'
-Hidden=false
-NoDisplay=false
-X-GNOME-Autostart-enabled=true
-EOF
-```
-
-Replace `/path/to/commanddeck` with the actual path.
+Open **Preferences** (⚙ in the titlebar) and enable **Launch at login**. CommandDeck writes a `.desktop` file to `~/.config/autostart/` automatically — no terminal commands needed.
 
 ---
 
 ## Roadmap (future ideas)
 
-- [ ] Native file picker for import/export (instead of path prompt)
-- [ ] Desktop notifications when a foreground process exits
-- [ ] Command categories with drag-to-reorder
-- [ ] Tauri/Rust rewrite for smaller binary
+- [ ] Drag-to-reorder cards
+- [ ] Card groups as collapsible sections
 - [ ] `.deb` / AppImage packaging
-- [ ] Keyboard shortcuts to toggle commands
 - [ ] Dark/light theme toggle
 
 ---

@@ -1,14 +1,52 @@
-// Fill order: top-left → bottom-right → top-right → bottom-left
-// Diagonal pattern reads clearly at 22px (avoids L-shape)
-const FILL_ORDER = [
-  { x: 2,  y: 2  },  // top-left
-  { x: 12, y: 12 },  // bottom-right
-  { x: 12, y: 2  },  // top-right
-  { x: 2,  y: 12 },  // bottom-left
-];
+const zlib = require('zlib');
 
-const CELL = 8;
-const CORNER = 1.5;
+// ─── Minimal PNG encoder ──────────────────────────────────────────────────────
+// Converts a raw RGBA buffer to a valid PNG with an sRGB chunk so that GTK and
+// the window manager apply the same color management as Chromium's CSS pipeline.
+// Raw RGBA via createFromBuffer skips sRGB handling on Linux, causing the icon
+// green to look visually different from the same #4ade80 rendered in CSS.
+
+function _crc32(buf) {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < buf.length; i++) {
+    c ^= buf[i];
+    for (let j = 0; j < 8; j++) c = (c >>> 1) ^ (c & 1 ? 0xEDB88320 : 0);
+  }
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+function _pngChunk(type, data) {
+  const tb = Buffer.from(type, 'ascii');
+  const len = Buffer.alloc(4);
+  len.writeUInt32BE(data.length);
+  const td = Buffer.concat([tb, data]);
+  const cv = Buffer.alloc(4);
+  cv.writeUInt32BE(_crc32(td));
+  return Buffer.concat([len, td, cv]);
+}
+
+function _rgbaToPng(width, height, rgba) {
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(width, 0); ihdr.writeUInt32BE(height, 4);
+  ihdr[8] = 8; ihdr[9] = 6; // 8-bit RGBA
+  const stride = width * 4;
+  const rows = Buffer.alloc(height * (1 + stride));
+  for (let y = 0; y < height; y++)
+    rgba.copy(rows, y * (1 + stride) + 1, y * stride, (y + 1) * stride);
+  return Buffer.concat([
+    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+    _pngChunk('IHDR', ihdr),
+    _pngChunk('sRGB', Buffer.from([0])), // perceptual rendering intent
+    _pngChunk('IDAT', zlib.deflateSync(rows, { level: 6 })),
+    _pngChunk('IEND', Buffer.alloc(0)),
+  ]);
+}
+
+function _pngDataUrl(width, height, rgba) {
+  return 'data:image/png;base64,' + _rgbaToPng(width, height, rgba).toString('base64');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 const COLOR = {
   bg:        '#0c0e14',
@@ -19,16 +57,25 @@ const COLOR = {
   amber:     '#fbbf24',
 };
 
+// Four pointy-top hexagons in a 2×2 grid, fill order: TL → BR → TR → BL (diagonal).
+// r=3.5 circumradius; each cell center aligns with the old 8×8 square centers.
+const HEX_R = 3.5;
+const HEX_GRID = [
+  { cx: 6,  cy: 6,  pts: '6,2.5 9.03,4.25 9.03,7.75 6,9.5 2.97,7.75 2.97,4.25' },
+  { cx: 16, cy: 16, pts: '16,12.5 19.03,14.25 19.03,17.75 16,19.5 12.97,17.75 12.97,14.25' },
+  { cx: 16, cy: 6,  pts: '16,2.5 19.03,4.25 19.03,7.75 16,9.5 12.97,7.75 12.97,4.25' },
+  { cx: 6,  cy: 16, pts: '6,12.5 9.03,14.25 9.03,17.75 6,19.5 2.97,17.75 2.97,14.25' },
+];
+
 function buildTrayIconSvg(runningCount, alertLevel, platform, size = 22) {
   const activeColor = platform === 'darwin' ? COLOR.activeMac : COLOR.active;
   const filled = Math.max(0, Math.min(runningCount, 4));
-  // Unfilled squares show dim outlines at idle (0 running); switch to green once anything is active
   const unfilledStroke = filled > 0 ? activeColor : COLOR.idle;
 
-  const cells = FILL_ORDER.map((cell, i) =>
+  const cells = HEX_GRID.map(({ pts }, i) =>
     i < filled
-      ? `<rect x="${cell.x}" y="${cell.y}" width="${CELL}" height="${CELL}" rx="${CORNER}" fill="${activeColor}"/>`
-      : `<rect x="${cell.x}" y="${cell.y}" width="${CELL}" height="${CELL}" rx="${CORNER}" fill="none" stroke="${unfilledStroke}" stroke-width="1"/>`
+      ? `<polygon points="${pts}" fill="${activeColor}"/>`
+      : `<polygon points="${pts}" fill="none" stroke="${unfilledStroke}" stroke-width="1"/>`
   ).join('');
 
   const badgeColor = alertLevel === 'red' ? COLOR.red : alertLevel === 'amber' ? COLOR.amber : null;
@@ -39,8 +86,6 @@ function buildTrayIconSvg(runningCount, alertLevel, platform, size = 22) {
 }
 
 // ─── Pixel-level RGBA renderer ────────────────────────────────────────────────
-// nativeImage.createFromBuffer() accepts raw RGBA (4 bytes/pixel, row-major).
-// This avoids SVG data URLs which Electron v29 on Linux does not support for tray icons.
 
 function hexToRgb(hex) {
   const n = parseInt(hex.slice(1), 16);
@@ -73,61 +118,71 @@ function inRoundRect(lx, ly, w, h, r) {
 }
 
 function fillRoundRect(buf, size, x, y, w, h, r, color) {
-  for (let py = y; py < y + h; py++) {
-    for (let px = x; px < x + w; px++) {
+  for (let py = y; py < y + h; py++)
+    for (let px = x; px < x + w; px++)
       if (inRoundRect(px - x, py - y, w, h, r)) setPixel(buf, size, px, py, color);
-    }
-  }
-}
-
-function strokeRoundRect(buf, size, x, y, w, h, r, color, sw) {
-  fillRoundRect(buf, size, x, y, w, h, r, color);
-  if (w > 2 * sw && h > 2 * sw) {
-    fillRoundRect(buf, size, x + sw, y + sw, w - 2 * sw, h - 2 * sw, Math.max(0, r - sw), RGBA.bg);
-  }
 }
 
 function fillCircle(buf, size, cx, cy, r, color) {
-  for (let py = cy - r - 1; py <= cy + r + 1; py++) {
-    for (let px = cx - r - 1; px <= cx + r + 1; px++) {
+  for (let py = cy - r - 1; py <= cy + r + 1; py++)
+    for (let px = cx - r - 1; px <= cx + r + 1; px++)
       if ((px - cx) ** 2 + (py - cy) ** 2 <= r * r) setPixel(buf, size, px, py, color);
-    }
+}
+
+// Pointy-top regular hexagon: vertex i at angle i*60° − 90° from center
+function _hexVerts(cx, cy, r) {
+  return Array.from({ length: 6 }, (_, i) => {
+    const a = (Math.PI / 3) * i - Math.PI / 2;
+    return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) };
+  });
+}
+
+function _inPolygon(x, y, verts) {
+  let inside = false;
+  for (let i = 0, j = verts.length - 1; i < verts.length; j = i++) {
+    const { x: xi, y: yi } = verts[i], { x: xj, y: yj } = verts[j];
+    if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi)
+      inside = !inside;
   }
+  return inside;
+}
+
+function fillHexagon(buf, size, cx, cy, r, color) {
+  const verts = _hexVerts(cx, cy, r);
+  for (let py = Math.floor(cy - r); py <= Math.ceil(cy + r); py++)
+    for (let px = Math.floor(cx - r); px <= Math.ceil(cx + r); px++)
+      if (_inPolygon(px + 0.5, py + 0.5, verts)) setPixel(buf, size, px, py, color);
+}
+
+function strokeHexagon(buf, size, cx, cy, r, sw, color) {
+  fillHexagon(buf, size, cx, cy, r, color);
+  if (r > sw) fillHexagon(buf, size, cx, cy, r - sw, RGBA.bg);
 }
 
 function buildIconRgba(runningCount, alertLevel, platform, size) {
-  // Buffer.alloc initialises to 0 — corners outside the rounded bg stay transparent
   const buf = Buffer.alloc(size * size * 4);
   const S = size / 22;
   const activeColor = platform === 'darwin' ? RGBA.activeMac : RGBA.active;
-  const filled = Math.max(0, Math.min(runningCount, 4));
-  const unfilledStroke = filled > 0 ? activeColor : RGBA.idle;
 
-  // Rounded background (rx=3 at 22px design grid)
   fillRoundRect(buf, size, 0, 0, size, size, Math.round(3 * S), RGBA.bg);
 
-  // Draw grid cells
-  for (let idx = 0; idx < 4; idx++) {
-    const cell = FILL_ORDER[idx];
-    const x = Math.round(cell.x * S);
-    const y = Math.round(cell.y * S);
-    const w = Math.round(CELL * S);
-    const h = Math.round(CELL * S);
-    const r = Math.round(CORNER * S);
-    if (idx < filled) {
-      fillRoundRect(buf, size, x, y, w, h, r, activeColor);
+  const filled = Math.max(0, Math.min(runningCount, 4));
+  const unfilledColor = filled > 0 ? activeColor : RGBA.idle;
+  const r = HEX_R * S;
+  const sw = Math.max(1, Math.round(1.5 * S));
+
+  for (let i = 0; i < 4; i++) {
+    const cx = HEX_GRID[i].cx * S, cy = HEX_GRID[i].cy * S;
+    if (i < filled) {
+      fillHexagon(buf, size, cx, cy, r, activeColor);
     } else {
-      strokeRoundRect(buf, size, x, y, w, h, r, unfilledStroke, Math.max(1, Math.round(S)));
+      strokeHexagon(buf, size, cx, cy, r, sw, unfilledColor);
     }
   }
 
-  // Draw alert badge — overlaps top-right cell by design, drawn last so always visible
   if (alertLevel) {
     const badgeColor = alertLevel === 'red' ? RGBA.red : RGBA.amber;
-    const cx = Math.round(19 * S);
-    const cy = Math.round(3 * S);
-    const r  = Math.max(1, Math.round(3 * S));
-    fillCircle(buf, size, cx, cy, r, badgeColor);
+    fillCircle(buf, size, Math.round(19 * S), Math.round(3 * S), Math.max(1, Math.round(3 * S)), badgeColor);
   }
 
   return buf;
@@ -140,12 +195,12 @@ function buildTrayIcon(runningCount, alertLevel) {
   const size = platform === 'linux' ? 22 : 16;
 
   const buf1x = buildIconRgba(runningCount, alertLevel, platform, size);
-  const img = nativeImage.createFromBuffer(buf1x, { width: size, height: size });
+  const img = nativeImage.createFromDataURL(_pngDataUrl(size, size, buf1x));
 
   // Add 2x representation for Retina / HiDPI (macOS and Windows)
   if (platform === 'darwin' || platform === 'win32') {
     const buf2x = buildIconRgba(runningCount, alertLevel, platform, size * 2);
-    img.addRepresentation({ scaleFactor: 2.0, width: size * 2, height: size * 2, buffer: buf2x });
+    img.addRepresentation({ scaleFactor: 2.0, dataURL: _pngDataUrl(size * 2, size * 2, buf2x) });
   }
 
   if (platform === 'darwin') img.setTemplateImage(true);
@@ -161,20 +216,15 @@ function buildAppIcon() {
 
   fillRoundRect(buf, size, 0, 0, size, size, Math.round(3 * S), RGBA.bg);
 
-  FILL_ORDER.forEach((cell, i) => {
-    const x = Math.round(cell.x * S);
-    const y = Math.round(cell.y * S);
-    const w = Math.round(CELL * S);
-    const h = Math.round(CELL * S);
-    const r = Math.round(CORNER * S);
-    if (i < 2) {
-      fillRoundRect(buf, size, x, y, w, h, r, RGBA.active);
-    } else {
-      strokeRoundRect(buf, size, x, y, w, h, r, RGBA.active, Math.max(1, Math.round(S)));
-    }
+  const r = HEX_R * S;
+  const sw = Math.max(1, Math.round(1.5 * S));
+  HEX_GRID.forEach(({ cx, cy }, i) => {
+    const x = cx * S, y = cy * S;
+    if (i < 2) fillHexagon(buf, size, x, y, r, RGBA.active);
+    else        strokeHexagon(buf, size, x, y, r, sw, RGBA.active);
   });
 
-  return nativeImage.createFromBuffer(buf, { width: size, height: size });
+  return nativeImage.createFromDataURL(_pngDataUrl(size, size, buf));
 }
 
 module.exports = { buildTrayIconSvg, buildTrayIcon, buildAppIcon };
