@@ -466,6 +466,7 @@ function openModal(cmd = null) {
   document.getElementById('f-on').value = cmd?.onCmd || cmd?.launchCmd || '';
   document.getElementById('f-off').value = cmd?.offCmd || '';
   document.getElementById('f-auto-restore').checked = cmd?.autoRestore || false;
+  document.getElementById('f-content').value = cmd?.content || '';
   modalTags = [...(cmd?.tags || [])];
   populateTagsDatalist();
   renderTagChips();
@@ -478,8 +479,20 @@ function openModal(cmd = null) {
 function updateModalFields() {
   const type = document.getElementById('f-type').value;
   const onLabel = document.getElementById('f-on-label');
+  const onRow = document.getElementById('f-on-row');
   const offRow = document.getElementById('f-off-row');
   const autoRestoreRow = document.getElementById('f-auto-restore-row');
+  const contentRow = document.getElementById('f-content-row');
+
+  if (type === 'cheatsheet') {
+    onRow.style.display = 'none';
+    offRow.style.display = 'none';
+    autoRestoreRow.style.display = 'none';
+    contentRow.style.display = '';
+    return;
+  }
+  contentRow.style.display = 'none';
+  onRow.style.display = '';
   if (type === 'toggle') {
     onLabel.firstChild.textContent = 'ON Command ';
     offRow.style.display = '';
@@ -548,14 +561,38 @@ document.getElementById('f-tags-input').addEventListener('change', e => {
 document.getElementById('modal-save').addEventListener('click', async () => {
   const label = document.getElementById('f-label').value.trim();
   const type = document.getElementById('f-type').value;
-  const onCmd = document.getElementById('f-on').value.trim();
-  if (!label || !onCmd) { alert('Label and command are required.'); return; }
 
   // Flush any partially-typed tag in the input
   const tagInput = document.getElementById('f-tags-input');
   const pending = tagInput.value.trim().replace(/,$/, '');
   if (pending && !modalTags.includes(pending)) modalTags.push(pending);
   tagInput.value = '';
+
+  if (type === 'cheatsheet') {
+    const content = document.getElementById('f-content').value.trim();
+    if (!label || !content) { alert('Label and content are required.'); return; }
+    const entry = {
+      id: editingId || uid(),
+      label,
+      note: document.getElementById('f-note').value.trim(),
+      type: 'cheatsheet',
+      tags: [...modalTags],
+      content,
+    };
+    if (editingId) {
+      const idx = config.commands.findIndex(c => c.id === editingId);
+      if (idx !== -1) config.commands[idx] = entry;
+    } else {
+      config.commands.push(entry);
+    }
+    await persist();
+    closeModal();
+    renderAll();
+    return;
+  }
+
+  const onCmd = document.getElementById('f-on').value.trim();
+  if (!label || !onCmd) { alert('Label and command are required.'); return; }
 
   const entry = {
     id: editingId || uid(),
