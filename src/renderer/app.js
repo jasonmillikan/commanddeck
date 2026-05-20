@@ -241,9 +241,10 @@ function handleHotkeyCapture(e) {
   stopHotkeyRecording();
 }
 
-async function handleDragEnd() {
+async function handleDragEnd(evt) {
+  if (evt.oldIndex === evt.newIndex) return;
   const container = document.getElementById('cards-container');
-  const newVisibleIds = [...container.querySelectorAll('[data-id]')].map(el => el.dataset.id);
+  const newVisibleIds = [...container.querySelectorAll('.card[data-id]')].map(el => el.dataset.id);
   config.commands = applyReorder(config.commands, newVisibleIds);
   await persist();
 }
