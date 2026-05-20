@@ -427,11 +427,14 @@ function openDrawer(cmd) {
     out.textContent = lines.length ? lines.join('') : '(no output captured yet — start the command first)';
     out.scrollTop = out.scrollHeight;
   }
-  document.getElementById('output-drawer').classList.add('open');
+  const drawer = document.getElementById('output-drawer');
+  drawer.classList.add('open');
+  document.querySelector('.board').style.paddingBottom = drawer.offsetHeight + 'px';
 }
 
 document.getElementById('drawer-close').addEventListener('click', () => {
   document.getElementById('output-drawer').classList.remove('open');
+  document.querySelector('.board').style.paddingBottom = '';
 });
 document.getElementById('drawer-open-log').addEventListener('click', async () => {
   if (drawerLogFile) await window.api.openLog(drawerLogFile);
@@ -732,11 +735,13 @@ loadAll();
   const drawer = document.getElementById('output-drawer');
   handle.addEventListener('mousedown', (e) => {
     e.preventDefault();
+    const board = document.querySelector('.board');
     function onMove(e) {
       const newHeight = Math.round(
         Math.min(Math.max(window.innerHeight - e.clientY, 100), window.innerHeight * 0.6)
       );
       drawer.style.height = newHeight + 'px';
+      if (drawer.classList.contains('open')) board.style.paddingBottom = newHeight + 'px';
     }
     function onUp() {
       document.removeEventListener('mousemove', onMove);
