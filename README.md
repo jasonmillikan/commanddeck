@@ -24,7 +24,7 @@ Features:
 - ✅ Log files saved to `~/.commanddeck/logs/`
 - ✅ Config saved to `~/.commanddeck/commands.json` (plain JSON, version-control friendly)
 - ✅ Export / Import config
-- ✅ Group/tag commands, search/filter
+- ✅ Multi-tag commands, sidebar tag filter, drag-to-reorder cards
 - ✅ Toggle state persists across restarts (auto-restore on startup)
 - ✅ Global hotkey to show/hide window (configurable in Preferences)
 - ✅ Desktop notifications on process crash or unexpected exit (configurable in Preferences)
@@ -69,7 +69,7 @@ Click **+ New Command** and fill in:
 - **Type** — Toggle, Launcher, or Foreground (see table above)
 - **ON Command** — the command to run when toggled on / launched
 - **OFF Command** — (Toggle only) the command to run when toggled off
-- **Group** — optional tag like `Audio`, `Gaming`, `Sync`
+- **Tags** — optional, e.g. `Audio`, `Gaming`. A command can have multiple tags. Click a tag in the sidebar to filter. Drag cards by their left-edge grip handle to reorder.
 
 ---
 
@@ -85,7 +85,7 @@ Your commands are stored at `~/.commanddeck/commands.json`. Example:
       "label": "Audio Loopback",
       "note": "Routes mic to speakers for monitoring",
       "type": "toggle",
-      "group": "Audio",
+      "tags": ["Audio"],
       "onCmd": "pactl load-module module-loopback latency_msec=1",
       "offCmd": "pactl unload-module module-loopback"
     },
@@ -94,7 +94,7 @@ Your commands are stored at `~/.commanddeck/commands.json`. Example:
       "label": "Steam",
       "note": "Launch Steam client",
       "type": "launcher",
-      "group": "Gaming",
+      "tags": ["Gaming"],
       "launchCmd": "flatpak run com.valveSoftware.Steam"
     },
     {
@@ -102,7 +102,7 @@ Your commands are stored at `~/.commanddeck/commands.json`. Example:
       "label": "Syncthing",
       "note": "File sync daemon",
       "type": "foreground",
-      "group": "Sync",
+      "tags": ["Sync"],
       "onCmd": "syncthing -allow-newer-config"
     }
   ]
@@ -125,8 +125,8 @@ Open **Preferences** (⚙ in the titlebar) and enable **Launch at login**. Comma
 
 ## Roadmap (future ideas)
 
-- [ ] Drag-to-reorder cards
-- [ ] Card groups as collapsible sections
+- [x] Drag-to-reorder cards
+- [ ] Card tags as collapsible sections
 - [ ] `.deb` / AppImage packaging
 - [ ] Dark/light theme toggle
 

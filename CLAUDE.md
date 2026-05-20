@@ -13,6 +13,7 @@ Built as an open-source project, Electron lets us ship fast and validate the con
 - **Runtime:** Electron (v29+)
 - **Frontend:** Vanilla JS, HTML, CSS (no framework — intentionally simple for now)
 - **Fonts:** JetBrains Mono (code/mono) + Syne (UI) via Google Fonts
+- **Drag-to-reorder:** SortableJS (loaded from `node_modules` via `<script>` tag, no bundler)
 - **Config storage:** `~/.commanddeck/commands.json` (plain JSON, human-readable, git-friendly)
 - **Log storage:** `~/.commanddeck/logs/` (one timestamped `.log` file per command run)
 - **IPC:** Electron's contextBridge + ipcMain/ipcRenderer (context isolation enabled)
@@ -26,7 +27,8 @@ commanddeck/
 ├── README.md
 ├── package.json
 ├── test/
-│   └── tray-icon.test.js  ← unit tests for tray icon renderer (node --test)
+│   ├── tray-icon.test.js  ← unit tests for tray icon renderer (node --test)
+│   └── utils.test.js      ← unit tests for migrateCommands + applyReorder (node --test)
 └── src/
     ├── main.js            ← Electron main process (window, tray, IPC, process mgmt)
     ├── preload.js         ← contextBridge API surface (secure Node↔renderer bridge)
@@ -34,6 +36,7 @@ commanddeck/
     └── renderer/
         ├── index.html     ← app shell, modal markup, drawer markup
         ├── style.css      ← full styling (CSS variables, dark theme)
+        ├── utils.js       ← pure helpers: migrateCommands, applyReorder (dual browser+Node env)
         └── app.js         ← all UI logic, state, card rendering, event handling
 ```
 
@@ -65,7 +68,7 @@ This is the core data model — get this right and everything else follows.
       "label": "Audio Loopback",
       "note": "Routes mic to audio output (useful for hearing onself while using headphones)",
       "type": "toggle",         // "toggle" | "launcher" | "foreground"
-      "tags": ["Audio"],        // optional, used for sidebar grouping
+      "tags": ["Audio"],        // optional array; a command can have multiple tags
       "onCmd": "pactl load-module module-loopback latency_msec=1",
       "offCmd": "pactl unload-module module-loopback"
     },
@@ -128,9 +131,9 @@ These were identified at the end of the prototype session — good starting poin
 
 5. ~~**Desktop notifications**~~ — **Done.** Crash (non-zero exit) and unexpected clean-exit notifications via Electron's `Notification` API, each toggled independently in the Preferences modal.
 
-6. **Drag-to-reorder cards** — currently order is insertion order. HTML5 drag-and-drop or a library like Sortable.js.
+6. ~~**Drag-to-reorder cards**~~ — **Done.** Left-edge grip handle (⠿) on each card. SortableJS manages drag with `animation: 150`. Order persisted immediately to `commands.json`. Filtered-view drags work correctly — non-visible cards stay in place (`applyReorder` in `utils.js`). Tags replaced the single `group` field; old configs auto-migrate on first load.
 
-7. **Card groups as collapsible sections** — currently tags just filter; could render as labeled collapsible sections on the board.
+7. **Card tags as collapsible sections** — currently tags just filter; could render as labeled collapsible sections on the board.
 
 8. **Import/export UX** — use native file dialogs, add a "share board" export format.
 
@@ -146,3 +149,7 @@ These were identified at the end of the prototype session — good starting poin
 - **Process kill behavior** — All spawned processes use `detached: true` so each becomes a process group leader. Kill signals use `process.kill(-pid, 'SIGTERM')` (negative PID) to reach the entire process group — this ensures bash's children (the actual command) receive the signal, not just the bash wrapper. On quit, only non-launcher processes are stopped; launcher processes intentionally keep running. Note: with `detached: true`, foreground processes are removed from Node's controlling terminal session, so Ctrl+C in the terminal (during `npm start` development) will not propagate to foreground child processes — use the app's KILL button or quit instead.
 - **Log file per run** — each invocation of a command creates a new log file with timestamp in the name. Old logs are never cleaned up automatically (future: log rotation).
 - **`app.js` is a single file** — fine for prototype, but as features grow, consider splitting into modules: `state.js`, `cards.js`, `modal.js`, `drawer.js`.
+- **`utils.js` dual-environment pattern** — `src/renderer/utils.js` is loaded as a `<script>` tag in the browser (globals) and also `require()`-able in Node.js tests via `if (typeof module !== 'undefined') module.exports = ...`. New pure renderer utilities should follow this pattern.
+- **Tags vs. group** — the old `group: string` field is obsolete. The schema now uses `tags: string[]`. `migrateCommands()` in `utils.js` auto-converts old configs on `loadAll()` — no manual migration needed. Never write a `group` field to `commands.json`.
+- **SortableJS instance** — `sortableInstance` in `app.js` must be destroyed before every `renderCards()` call (innerHTML replacement detaches old DOM nodes). The empty-state path also destroys it. Do not call `Sortable.create()` without first calling `sortableInstance.destroy()`.
+- **Drag reorder selector** — `handleDragEnd` uses `.card[data-id]` (not bare `[data-id]`) to read card order from the DOM. Card action buttons also carry `data-id`; the class scope prevents them being picked up as card roots.
