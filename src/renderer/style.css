@@ -182,8 +182,7 @@ body { font-family: var(--font-ui); font-size: 14px; display: flex; flex-directi
   border: 1px solid var(--border);
   border-radius: 8px;
   display: flex;
-  flex-direction: column;
-  gap: 0;
+  flex-direction: row;
   transition: border-color 0.2s, box-shadow 0.2s;
   position: relative;
   overflow: hidden;
@@ -199,6 +198,30 @@ body { font-family: var(--font-ui); font-size: 14px; display: flex; flex-directi
 .card.running::before { background: var(--accent); }
 .card.running { border-color: rgba(74, 222, 128, 0.25); box-shadow: 0 0 20px rgba(74, 222, 128, 0.06); }
 .card:hover { border-color: var(--border2); }
+
+.card-drag-handle {
+  width: 28px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  color: var(--text-dim);
+  opacity: 0.35;
+  border-right: 1px solid var(--border);
+  font-size: 13px;
+  transition: opacity 0.15s, color 0.15s;
+  user-select: none;
+}
+.card-drag-handle:hover { opacity: 1; color: var(--text); }
+.card-drag-handle:active { cursor: grabbing; }
+
+.card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
 
 .card-header {
   display: flex;
@@ -318,6 +341,61 @@ body { font-family: var(--font-ui); font-size: 14px; display: flex; flex-directi
 .card-btn-log:hover   { color: var(--accent2); }
 .card-btn-edit:hover  { color: var(--warn); }
 .card-btn-delete:hover{ color: var(--danger); }
+
+/* ── Tag chip input ─────────────────────────────────────────────────────────── */
+.tag-input-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  padding: 6px 8px;
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  min-height: 36px;
+  cursor: text;
+}
+.tag-input-wrap:focus-within {
+  border-color: var(--accent2);
+  outline: none;
+}
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(34, 211, 238, 0.1);
+  border: 1px solid rgba(34, 211, 238, 0.25);
+  color: var(--accent2);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+.tag-chip-remove {
+  background: none;
+  border: none;
+  color: var(--accent2);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 0;
+  opacity: 0.6;
+  transition: opacity 0.1s;
+}
+.tag-chip-remove:hover { opacity: 1; }
+#f-tags-input {
+  border: none;
+  background: none;
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  outline: none;
+  flex: 1;
+  min-width: 80px;
+  padding: 0;
+}
 
 /* ── Toggle switch ─────────────────────────────────────────────────────────── */
 .toggle-wrap {

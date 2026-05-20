@@ -7,8 +7,10 @@ let outputMap = {};
 let activeGroup = 'all';
 let searchQuery = '';
 let editingId = null;
+let modalTags = [];
 let drawerCommandId = null;
 let drawerLogFile = null;
+let sortableInstance = null;
 let prefs = { hotkey: '', notify: { onCrash: true, onUnexpectedExit: false } };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -40,7 +42,10 @@ function getLogFile(id) {
 
 // ─── Config persistence ───────────────────────────────────────────────────────
 async function loadAll() {
-  config = await window.api.loadConfig();
+  const raw = await window.api.loadConfig();
+  const { commands, changed } = migrateCommands(raw.commands || []);
+  config = { ...raw, commands };
+  if (changed) await window.api.saveConfig(config);
   liveMap = await window.api.getLiveProcesses();
   prefs = await window.api.loadPrefs();
   renderAll();
@@ -52,11 +57,11 @@ async function persist() {
 
 // ─── Group list ───────────────────────────────────────────────────────────────
 function renderGroups() {
-  const groups = ['all', ...new Set(config.commands.map(c => c.group).filter(Boolean))];
+  const tags = ['all', ...new Set(config.commands.flatMap(c => c.tags || []).filter(Boolean))];
   const el = document.getElementById('group-list');
-  el.innerHTML = groups.map(g => `
-    <div class="group-item ${activeGroup === g ? 'active' : ''}" data-group="${g}">
-      ${g === 'all' ? 'All Commands' : g}
+  el.innerHTML = tags.map(t => `
+    <div class="group-item ${activeGroup === t ? 'active' : ''}" data-group="${t}">
+      ${t === 'all' ? 'All Commands' : t}
     </div>
   `).join('');
   el.querySelectorAll('.group-item').forEach(item => {
@@ -70,13 +75,13 @@ function renderGroups() {
 // ─── Cards ────────────────────────────────────────────────────────────────────
 function filteredCommands() {
   return config.commands.filter(cmd => {
-    const groupOk = activeGroup === 'all' || cmd.group === activeGroup;
+    const tagOk = activeGroup === 'all' || (cmd.tags || []).includes(activeGroup);
     const q = searchQuery.toLowerCase();
     const searchOk = !q ||
       cmd.label.toLowerCase().includes(q) ||
       (cmd.note || '').toLowerCase().includes(q) ||
       (cmd.onCmd || '').toLowerCase().includes(q);
-    return groupOk && searchOk;
+    return tagOk && searchOk;
   });
 }
 
@@ -156,17 +161,20 @@ function renderCard(cmd) {
 
   return `
     <div class="card ${running ? 'running' : ''}" data-id="${cmd.id}">
-      <div class="card-header">
-        <div class="card-info">
-          <div class="card-label">${escHtml(cmd.label)}</div>
-          ${cmd.note ? `<div class="card-note">${escHtml(cmd.note)}</div>` : ''}
+      <div class="card-drag-handle">⠿</div>
+      <div class="card-body">
+        <div class="card-header">
+          <div class="card-info">
+            <div class="card-label">${escHtml(cmd.label)}</div>
+            ${cmd.note ? `<div class="card-note">${escHtml(cmd.note)}</div>` : ''}
+          </div>
+          ${badgeFor(cmd.type)}
         </div>
-        ${badgeFor(cmd.type)}
+        <div class="card-cmd" title="${escHtml(displayCmd)}">${escHtml(displayCmd)}</div>
+        ${metaHtml}
+        ${controlHtml}
+        <div class="card-actions">${actionsHtml}</div>
       </div>
-      <div class="card-cmd" title="${escHtml(displayCmd)}">${escHtml(displayCmd)}</div>
-      ${metaHtml}
-      ${controlHtml}
-      <div class="card-actions">${actionsHtml}</div>
     </div>
   `;
 }
@@ -234,6 +242,14 @@ function handleHotkeyCapture(e) {
   stopHotkeyRecording();
 }
 
+async function handleDragEnd(evt) {
+  if (evt.oldIndex === evt.newIndex) return;
+  const container = document.getElementById('cards-container');
+  const newVisibleIds = [...container.querySelectorAll('.card[data-id]')].map(el => el.dataset.id);
+  config.commands = applyReorder(config.commands, newVisibleIds);
+  await persist();
+}
+
 function renderCards() {
   const container = document.getElementById('cards-container');
   const cmds = filteredCommands();
@@ -242,12 +258,19 @@ function renderCards() {
       <div class="empty-state">
         <div class="empty-state-icon">⬡</div>
         <div class="empty-state-text">${config.commands.length === 0 ? 'No commands yet' : 'No matches'}</div>
-        <div class="empty-state-hint">${config.commands.length === 0 ? 'Click "+ New Command" to get started' : 'Try a different search or group'}</div>
+        <div class="empty-state-hint">${config.commands.length === 0 ? 'Click "+ New Command" to get started' : 'Try a different search or tag'}</div>
       </div>`;
+    if (sortableInstance) { sortableInstance.destroy(); sortableInstance = null; }
     return;
   }
   container.innerHTML = cmds.map(renderCard).join('');
   attachCardListeners();
+  if (sortableInstance) sortableInstance.destroy();
+  sortableInstance = Sortable.create(container, {
+    handle: '.card-drag-handle',
+    animation: 150,
+    onEnd: handleDragEnd,
+  });
 }
 
 function renderStats() {
@@ -380,6 +403,25 @@ document.getElementById('drawer-open-log').addEventListener('click', async () =>
 });
 
 // ─── Modal ────────────────────────────────────────────────────────────────────
+function renderTagChips() {
+  const wrap = document.getElementById('f-tags-wrap');
+  const input = document.getElementById('f-tags-input');
+  // Remove existing chips (leave the input in place)
+  wrap.querySelectorAll('.tag-chip').forEach(el => el.remove());
+  modalTags.forEach((tag, i) => {
+    const chip = document.createElement('div');
+    chip.className = 'tag-chip';
+    chip.innerHTML = `${escHtml(tag)}<button class="tag-chip-remove" data-index="${i}" tabindex="-1">×</button>`;
+    wrap.insertBefore(chip, input);
+  });
+}
+
+function populateTagsDatalist() {
+  const all = [...new Set(config.commands.flatMap(c => c.tags || []).filter(Boolean))];
+  const dl = document.getElementById('tags-datalist');
+  dl.innerHTML = all.map(t => `<option value="${escHtml(t)}">`).join('');
+}
+
 function openModal(cmd = null) {
   editingId = cmd?.id || null;
   document.getElementById('modal-title').textContent = cmd ? 'Edit Command' : 'New Command';
@@ -388,8 +430,11 @@ function openModal(cmd = null) {
   document.getElementById('f-type').value = cmd?.type || 'toggle';
   document.getElementById('f-on').value = cmd?.onCmd || cmd?.launchCmd || '';
   document.getElementById('f-off').value = cmd?.offCmd || '';
-  document.getElementById('f-group').value = cmd?.group || '';
   document.getElementById('f-auto-restore').checked = cmd?.autoRestore || false;
+  modalTags = [...(cmd?.tags || [])];
+  populateTagsDatalist();
+  renderTagChips();
+  document.getElementById('f-tags-input').value = '';
   updateModalFields();
   document.getElementById('modal-backdrop').classList.add('open');
   document.getElementById('f-label').focus();
@@ -430,18 +475,59 @@ document.getElementById('modal-backdrop').addEventListener('click', e => {
   if (e.target === e.currentTarget) closeModal();
 });
 
+// Tag chip input events
+document.getElementById('f-tags-wrap').addEventListener('click', e => {
+  const btn = e.target.closest('.tag-chip-remove');
+  if (btn) {
+    modalTags.splice(Number(btn.dataset.index), 1);
+    renderTagChips();
+  } else {
+    document.getElementById('f-tags-input').focus();
+  }
+});
+
+document.getElementById('f-tags-input').addEventListener('keydown', e => {
+  const input = e.target;
+  if ((e.key === 'Enter' || e.key === ',') && input.value.trim()) {
+    e.preventDefault();
+    const tag = input.value.trim().replace(/,$/, '');
+    if (tag && !modalTags.includes(tag)) modalTags.push(tag);
+    input.value = '';
+    renderTagChips();
+  } else if (e.key === 'Backspace' && input.value === '' && modalTags.length > 0) {
+    modalTags.pop();
+    renderTagChips();
+  }
+});
+
+document.getElementById('f-tags-input').addEventListener('change', e => {
+  // Handle datalist selection (fires 'change' when an option is picked)
+  const tag = e.target.value.trim();
+  if (tag && !modalTags.includes(tag)) {
+    modalTags.push(tag);
+    e.target.value = '';
+    renderTagChips();
+  }
+});
+
 document.getElementById('modal-save').addEventListener('click', async () => {
   const label = document.getElementById('f-label').value.trim();
   const type = document.getElementById('f-type').value;
   const onCmd = document.getElementById('f-on').value.trim();
   if (!label || !onCmd) { alert('Label and command are required.'); return; }
 
+  // Flush any partially-typed tag in the input
+  const tagInput = document.getElementById('f-tags-input');
+  const pending = tagInput.value.trim().replace(/,$/, '');
+  if (pending && !modalTags.includes(pending)) modalTags.push(pending);
+  tagInput.value = '';
+
   const entry = {
     id: editingId || uid(),
     label,
     note: document.getElementById('f-note').value.trim(),
     type,
-    group: document.getElementById('f-group').value.trim(),
+    tags: [...modalTags],
     ...(type === 'toggle' ? {
       onCmd,
       offCmd: document.getElementById('f-off').value.trim(),

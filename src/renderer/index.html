@@ -35,7 +35,7 @@
         <span class="add-btn-icon">+</span>
         <span>New Command</span>
       </button>
-      <div class="sidebar-section-label">GROUPS</div>
+      <div class="sidebar-section-label">TAGS</div>
       <div id="group-list" class="group-list">
         <div class="group-item active" data-group="all">All Commands</div>
       </div>
@@ -93,8 +93,11 @@
             Auto-restore on startup
           </label>
         </div>
-        <label>Group / Tag
-          <input type="text" id="f-group" placeholder="e.g. Audio, Gaming, Sync…" />
+        <label>Tags
+          <div class="tag-input-wrap" id="f-tags-wrap">
+            <input type="text" id="f-tags-input" placeholder="Add tag…" list="tags-datalist" autocomplete="off" />
+          </div>
+          <datalist id="tags-datalist"></datalist>
         </label>
       </div>
       <div class="modal-footer">
@@ -154,6 +157,8 @@
     <pre class="drawer-output" id="drawer-output"></pre>
   </div>
 
+  <script src="utils.js"></script>
+  <script src="../../node_modules/sortablejs/Sortable.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
