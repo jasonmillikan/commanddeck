@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { buildTrayIconSvg } = require('../src/tray-icon');
+const { buildTrayIconSvg } = require('../src/main/tray-icon');
 
 test('idle: no filled hexagons, four idle outlines', () => {
   const svg = buildTrayIconSvg(0, null, 'linux');

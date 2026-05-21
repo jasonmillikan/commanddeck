@@ -1,6 +1,11 @@
-const { test } = require('node:test');
+const { test, before } = require('node:test');
 const assert = require('node:assert/strict');
-const { migrateCommands, applyReorder } = require('../src/renderer/utils');
+
+let migrateCommands, applyReorder;
+
+before(async () => {
+  ({ migrateCommands, applyReorder } = await import('../src/renderer/utils.js'));
+});
 
 test('migrateCommands: group string → tags array', () => {
   const input = [{ id: 'a', label: 'A', group: 'Audio' }];
@@ -44,11 +49,7 @@ test('migrateCommands: mixed batch — some migrated, some not', () => {
 });
 
 test('applyReorder: reorders full unfiltered list', () => {
-  const commands = [
-    { id: 'a', label: 'A' },
-    { id: 'b', label: 'B' },
-    { id: 'c', label: 'C' },
-  ];
+  const commands = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
   const result = applyReorder(commands, ['b', 'a', 'c']);
   assert.deepEqual(result.map(c => c.id), ['b', 'a', 'c']);
 });
@@ -61,7 +62,6 @@ test('applyReorder: filtered drag moves only visible cards, non-visible stay in 
     { id: 'd', tags: ['audio'] },
     { id: 'e', tags: ['other'] },
   ];
-  // Visible (audio filter): [a, c, d] — drag d before c → new visible order [a, d, c]
   const result = applyReorder(commands, ['a', 'd', 'c']);
   assert.deepEqual(result.map(c => c.id), ['a', 'b', 'd', 'c', 'e']);
 });

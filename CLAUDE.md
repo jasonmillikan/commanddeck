@@ -28,17 +28,34 @@ commanddeck/
 ├── README.md
 ├── package.json
 ├── test/
-│   ├── tray-icon.test.js  ← unit tests for tray icon renderer (node --test)
-│   └── utils.test.js      ← unit tests for migrateCommands + applyReorder (node --test)
+│   ├── config-io.test.js       ← loadConfig, saveConfig, ensureConfigDir
+│   ├── prefs.test.js           ← loadPrefs, savePrefs
+│   ├── process-manager.test.js ← logLine, saveCurrentState, toggle state round-trip
+│   ├── state.test.js           ← loadState, saveState
+│   ├── tray-icon.test.js       ← tray icon SVG rendering
+│   └── utils.test.js           ← migrateCommands, applyReorder
 └── src/
-    ├── main.js            ← Electron main process (window, tray, IPC, process mgmt)
-    ├── preload.js         ← contextBridge API surface (secure Node↔renderer bridge)
-    ├── tray-icon.js       ← stateful tray icon renderer (RGBA pixel buffer, no static assets)
-    └── renderer/
-        ├── index.html     ← app shell, modal markup, drawer markup
-        ├── style.css      ← full styling (CSS variables, dark theme)
-        ├── utils.js       ← pure helpers: migrateCommands, applyReorder (dual browser+Node env)
-        └── app.js         ← all UI logic, state, card rendering, event handling
+    ├── main/                   ← Electron main process (CommonJS)
+    │   ├── main.js             ← entry point: lifecycle + boot wiring only (~50 lines)
+    │   ├── preload.js          ← contextBridge API surface (secure Node↔renderer bridge)
+    │   ├── config-io.js        ← loadConfig, saveConfig, path constants, detectTerminalApp
+    │   ├── window.js           ← createWindow, createTray, toggleWindow, updateTrayIcon
+    │   ├── process-manager.js  ← spawnCommand, kill, toggle state, liveProcesses Map
+    │   ├── pty-manager.js      ← ptyCreate, ptyWrite, ptyResize, killAllPty
+    │   ├── ipc-handlers.js     ← all ipcMain.handle() registrations (wiring only)
+    │   ├── tray-icon.js        ← stateful tray icon renderer (SVG, no static assets)
+    │   ├── prefs.js            ← loadPrefs, savePrefs, DEFAULTS
+    │   └── state.js            ← loadState, saveState (toggle persistence)
+    └── renderer/               ← Electron renderer process (ES modules)
+        ├── index.html          ← app shell, modal markup, drawer markup
+        ├── style.css           ← full styling (CSS variables, dark theme)
+        ├── app.js              ← entry point: state, boot, card events, IPC wiring (~280 lines)
+        ├── utils.js            ← uid, formatTime, escHtml, badgeFor, migrateCommands, applyReorder, keyEventToAccelerator
+        ├── cards.js            ← renderCard, renderCards, renderStats, filteredCommands
+        ├── modal.js            ← openModal, closeModal, updateModalFields, tag chips
+        ├── drawer.js           ← openDrawer, close/run-all listeners
+        ├── terminal.js         ← initTerminal, switchToTerminal, terminalMap
+        └── prefs-modal.js      ← openPrefsModal, closePrefsModal, hotkey recording
 ```
 
 ## Design Language
@@ -166,14 +183,14 @@ These were identified at the end of the prototype session — good starting poin
 
 - **No build step** — this is intentionally plain JS/HTML/CSS. No webpack, no transpilation. `npm start` runs directly.
 - **Context isolation is ON** — never add `nodeIntegration: true`. All Node access goes through `preload.js` → `contextBridge`.
-- **In-memory live state** — `liveProcesses` Map in `main.js` and `liveMap` object in `app.js` are not persisted. App restart clears them. This is fine for now (foreground processes die with the app anyway; launchers are detached and survive but lose tracking).
+- **In-memory live state** — `liveProcesses` Map in `process-manager.js` and `liveMap` object in `app.js` are not persisted. App restart clears them. This is fine for now (foreground processes die with the app anyway; launchers are detached and survive but lose tracking).
 - **Process kill behavior** — All spawned processes use `detached: true` so each becomes a process group leader. Kill signals use `process.kill(-pid, 'SIGTERM')` (negative PID) to reach the entire process group — this ensures bash's children (the actual command) receive the signal, not just the bash wrapper. On quit, only non-launcher processes are stopped; launcher processes intentionally keep running. Note: with `detached: true`, foreground processes are removed from Node's controlling terminal session, so Ctrl+C in the terminal (during `npm start` development) will not propagate to foreground child processes — use the app's KILL button or quit instead.
 - **Log file per run** — each invocation of a command creates a new log file with timestamp in the name. Old logs are never cleaned up automatically (future: log rotation).
 - **node-pty native module** — uses Microsoft's `node-pty` (not `node-pty-prebuilt-multiarch`). It includes C++ source and is compiled by `electron-rebuild` on `npm install` (via `postinstall`). A `patch-package` patch in `patches/node-pty+1.1.0.patch` forces `-std=c++20` in `binding.gyp` — required because Electron 42 uses Node.js 24 headers which mandate C++20. Do not remove the patch or switch to `node-pty-prebuilt-multiarch`; the prebuilt package has no binary for Electron 42's ABI (v146) and its npm release omits the C++ source.
-- **PTY session lifecycle** — `ptyProcesses` Map in `main.js` holds one PTY per cheatsheet `commandId`. `pty-create` is idempotent (skips if already exists). `pty-exit` event deletes the map entry so the next open re-creates cleanly. All PTY processes are killed in the `will-quit` handler.
-- **xterm instances** — `terminalMap` in `app.js` holds `{ term, fitAddon, ready, pendingWrites }` per `commandId`. The entry is set (with `ready: false`) before `await ptyCreate` so concurrent drawer opens can queue snippet writes into `pendingWrites[]`. The global `onPtyData` listener flushes the queue on the first data event. `onPtyExit` deletes the map entry so the terminal re-initialises on next open.
-- **`app.js` is a single file** — fine for prototype, but as features grow, consider splitting into modules: `state.js`, `cards.js`, `modal.js`, `drawer.js`.
-- **`utils.js` dual-environment pattern** — `src/renderer/utils.js` is loaded as a `<script>` tag in the browser (globals) and also `require()`-able in Node.js tests via `if (typeof module !== 'undefined') module.exports = ...`. New pure renderer utilities should follow this pattern.
+- **PTY session lifecycle** — `ptyProcesses` Map in `pty-manager.js` holds one PTY per cheatsheet `commandId`. `pty-create` is idempotent (skips if already exists). `pty-exit` event deletes the map entry so the next open re-creates cleanly. All PTY processes are killed in the `will-quit` handler.
+- **xterm instances** — `terminalMap` in `terminal.js` holds `{ term, fitAddon, ready, pendingWrites }` per `commandId`. The entry is set (with `ready: false`) before `await ptyCreate` so concurrent drawer opens can queue snippet writes into `pendingWrites[]`. The global `onPtyData` listener in `app.js` flushes the queue on the first data event. `onPtyExit` deletes the map entry so the terminal re-initialises on next open.
+- **Module architecture** — the renderer uses ES modules (`type="module"` on the `app.js` script tag). `app.js` is the entry point and owns shared state; all other renderer modules receive state via getter callbacks injected at boot (`initModal`, `initDrawer`, `initPrefsModal`). The main process stays CommonJS; `ipc-handlers.js` is a pure wiring layer and contains no business logic.
+- **`utils.js` is a pure ES module** — `src/renderer/utils.js` uses `export function` declarations. Test files load it with `await import(...)` inside a `before()` hook (dynamic import from CommonJS). Do not add `module.exports` or a dual-env guard.
 - **Tags vs. group** — the old `group: string` field is obsolete. The schema now uses `tags: string[]`. `migrateCommands()` in `utils.js` auto-converts old configs on `loadAll()` — no manual migration needed. Never write a `group` field to `commands.json`.
-- **SortableJS instance** — `sortableInstance` in `app.js` must be destroyed before every `renderCards()` call (innerHTML replacement detaches old DOM nodes). The empty-state path also destroys it. Do not call `Sortable.create()` without first calling `sortableInstance.destroy()`.
+- **SortableJS instance** — `sortableInstance` in `cards.js` must be destroyed before every `renderCards()` call (innerHTML replacement detaches old DOM nodes). The empty-state path also destroys it. Do not call `Sortable.create()` without first calling `sortableInstance.destroy()`.
 - **Drag reorder selector** — `handleDragEnd` uses `.card[data-id]` (not bare `[data-id]`) to read card order from the DOM. Card action buttons also carry `data-id`; the class scope prevents them being picked up as card roots.

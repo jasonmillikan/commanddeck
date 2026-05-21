@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const os = require('os');
 const path = require('path');
 const fs = require('fs');
-const { loadPrefs, savePrefs, DEFAULTS } = require('../src/prefs');
+const { loadPrefs, savePrefs, DEFAULTS } = require('../src/main/prefs');
 
 test('loadPrefs returns defaults when file is missing', () => {
   const result = loadPrefs('/nonexistent/path/prefs.json');
