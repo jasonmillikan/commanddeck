@@ -1,4 +1,4 @@
-import { migrateCommands, applyReorder } from './utils.js';
+import { migrateCommands, applyReorder, escHtml } from './utils.js';
 import { renderCards, renderStats } from './cards.js';
 import { openModal, initModal } from './modal.js';
 import { openDrawer, initDrawer, getDrawerCommandId } from './drawer.js';
@@ -67,8 +67,8 @@ function renderGroups() {
   const tags = ['all', ...new Set(config.commands.flatMap(c => c.tags || []).filter(Boolean))];
   const el = document.getElementById('group-list');
   el.innerHTML = tags.map(t => `
-    <div class="group-item ${activeGroup === t ? 'active' : ''}" data-group="${t}">
-      ${t === 'all' ? 'All Commands' : t}
+    <div class="group-item ${activeGroup === t ? 'active' : ''}" data-group="${escHtml(t)}">
+      ${t === 'all' ? 'All Commands' : escHtml(t)}
     </div>
   `).join('');
   el.querySelectorAll('.group-item').forEach(item => {
