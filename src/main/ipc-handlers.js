@@ -43,7 +43,7 @@ function register(ipcMain, { procMgr, ptyMgr, win, cfgIo, globalShortcut, dialog
 
   ipcMain.handle('get-live-processes', () => procMgr.getLiveProcesses());
 
-  ipcMain.handle('run-command', async (_, { commandId, label, type }) => {
+  ipcMain.handle('run-command', async (_, { commandId, type }) => {
     const cfg = cfgIo.loadConfig();
     const cmd = (cfg.commands || []).find(c => c.id === commandId);
     if (!cmd) return { ok: false, error: 'unknown_command' };
@@ -51,7 +51,7 @@ function register(ipcMain, { procMgr, ptyMgr, win, cfgIo, globalShortcut, dialog
     if (!cmdString) return { ok: false, error: 'no_cmd_for_type' };
 
     if (type === 'toggle-on' || type === 'launcher' || type === 'foreground') {
-      const result = procMgr.spawnCommand(commandId, label, cmdString, type);
+      const result = procMgr.spawnCommand(commandId, cmd.label, cmdString, type);
       win.updateTrayIcon({
         running: procMgr.liveProcesses.size + procMgr.activeTogglesMeta.size + procMgr.lastSessionToggles.size,
         alertState: procMgr.getAlertState(),
