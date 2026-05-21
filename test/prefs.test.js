@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const os = require('os');
 const path = require('path');
 const fs = require('fs');
-const { loadPrefs, savePrefs, DEFAULTS } = require('../src/main/prefs');
+const { loadPrefs, savePrefs, sanitizePrefs, DEFAULTS } = require('../src/main/prefs');
 
 test('loadPrefs returns defaults when file is missing', () => {
   const result = loadPrefs('/nonexistent/path/prefs.json');
@@ -56,4 +56,37 @@ test('loadPrefs merges theme from saved data', () => {
   const result = loadPrefs(tmp);
   assert.equal(result.theme, 'light');
   fs.unlinkSync(tmp);
+});
+
+test('sanitizePrefs: passes through valid data unchanged', () => {
+  const input = { hotkey: 'Super+D', theme: 'dark', drawerHeight: 300, notify: { onCrash: true, onUnexpectedExit: false } };
+  const result = sanitizePrefs(input);
+  assert.deepEqual(result, input);
+});
+
+test('sanitizePrefs: defaults unknown theme to "system"', () => {
+  const result = sanitizePrefs({ theme: 'neon' });
+  assert.equal(result.theme, 'system');
+});
+
+test('sanitizePrefs: clamps hotkey to 100 chars', () => {
+  const result = sanitizePrefs({ hotkey: 'A'.repeat(150) });
+  assert.equal(result.hotkey.length, 100);
+});
+
+test('sanitizePrefs: defaults non-integer drawerHeight to 240', () => {
+  assert.equal(sanitizePrefs({ drawerHeight: 'big' }).drawerHeight, 240);
+  assert.equal(sanitizePrefs({ drawerHeight: -10 }).drawerHeight, 240);
+  assert.equal(sanitizePrefs({ drawerHeight: 0 }).drawerHeight, 240);
+});
+
+test('sanitizePrefs: coerces notify fields to booleans', () => {
+  const result = sanitizePrefs({ notify: { onCrash: 1, onUnexpectedExit: null } });
+  assert.equal(result.notify.onCrash, true);
+  assert.equal(result.notify.onUnexpectedExit, false);
+});
+
+test('sanitizePrefs: ignores unknown top-level keys', () => {
+  const result = sanitizePrefs({ hotkey: 'Super+D', evil: 'payload' });
+  assert.equal(result.evil, undefined);
 });
