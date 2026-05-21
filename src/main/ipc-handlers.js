@@ -1,13 +1,19 @@
 const path = require('path');
 const fs   = require('fs');
 const os   = require('os');
+const { validateConfig } = require('./validate-config');
 
 function register(ipcMain, { procMgr, ptyMgr, win, cfgIo, globalShortcut, dialog, shell }) {
   const { CONFIG_PATH, LOG_DIR, AUTOSTART_PATH, loadConfig, saveConfig, autostartDesktopContent, detectTerminalApp } = cfgIo;
   const { spawn } = require('child_process');
 
   ipcMain.handle('load-config', () => loadConfig());
-  ipcMain.handle('save-config', (_, data) => { saveConfig(CONFIG_PATH, data); return true; });
+  ipcMain.handle('save-config', (_, data) => {
+    const check = validateConfig(data);
+    if (!check.ok) return { ok: false, error: check.error };
+    saveConfig(CONFIG_PATH, data);
+    return { ok: true };
+  });
 
   ipcMain.handle('load-prefs', () => {
     const { loadPrefs } = require('./prefs');
@@ -29,15 +35,16 @@ function register(ipcMain, { procMgr, ptyMgr, win, cfgIo, globalShortcut, dialog
   });
 
   ipcMain.handle('save-prefs', (_, data) => {
-    const { savePrefs } = require('./prefs');
+    const { savePrefs, sanitizePrefs } = require('./prefs');
     const { PREFS_PATH } = cfgIo;
+    const safe = sanitizePrefs(data);
     globalShortcut.unregisterAll();
-    if (data.hotkey) {
-      const ok = globalShortcut.register(data.hotkey, win.toggleWindow);
+    if (safe.hotkey) {
+      const ok = globalShortcut.register(safe.hotkey, win.toggleWindow);
       if (!ok) return { ok: false, error: 'hotkey_conflict' };
     }
-    procMgr.setPrefs(data);
-    savePrefs(PREFS_PATH, data);
+    procMgr.setPrefs(safe);
+    savePrefs(PREFS_PATH, safe);
     return { ok: true };
   });
 
@@ -108,7 +115,12 @@ function register(ipcMain, { procMgr, ptyMgr, win, cfgIo, globalShortcut, dialog
     return { ok: true };
   });
 
-  ipcMain.handle('pty-create', (_, { commandId }) => ptyMgr.ptyCreate(commandId));
+  ipcMain.handle('pty-create', (_, { commandId }) => {
+    const cfg = cfgIo.loadConfig();
+    const cmd = (cfg.commands || []).find(c => c.id === commandId && c.type === 'cheatsheet');
+    if (!cmd) return { ok: false, error: 'unknown_cheatsheet' };
+    return ptyMgr.ptyCreate(commandId);
+  });
   ipcMain.handle('pty-write',  (_, { commandId, data }) => ptyMgr.ptyWrite(commandId, data));
   ipcMain.handle('pty-resize', (_, { commandId, cols, rows }) => ptyMgr.ptyResize(commandId, cols, rows));
 
@@ -180,6 +192,11 @@ function register(ipcMain, { procMgr, ptyMgr, win, cfgIo, globalShortcut, dialog
       detail: 'This cannot be undone.',
     });
     if (response !== 0) return { ok: false, canceled: true };
+    const check = validateConfig(data);
+    if (!check.ok) {
+      dialog.showErrorBox('Import rejected', `Invalid config: ${check.error}`);
+      return { ok: false, error: check.error };
+    }
     saveConfig(CONFIG_PATH, data);
     return { ok: true, data };
   });
