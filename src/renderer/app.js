@@ -403,6 +403,7 @@ async function stopCommand(cmd) {
 // ─── In-app terminal ─────────────────────────────────────────────────────────
 async function initTerminal(cmd) {
   if (terminalMap.has(cmd.id)) return;
+  terminalMap.set(cmd.id, null); // claim slot before any await to prevent double-init on concurrent calls
   const container = document.createElement('div');
   container.id = `terminal-${cmd.id}`;
   container.className = 'terminal-instance xterm-hidden';
@@ -418,8 +419,14 @@ async function initTerminal(cmd) {
   term.loadAddon(fitAddon);
   term.open(container);
   term.onData(data => window.api.ptyWrite(cmd.id, data));
+  try {
+    await window.api.ptyCreate(cmd.id);
+  } catch (err) {
+    terminalMap.delete(cmd.id);
+    container.remove();
+    throw err;
+  }
   terminalMap.set(cmd.id, { term, fitAddon });
-  await window.api.ptyCreate(cmd.id);
 }
 
 function switchToTerminal(cmdId) {
