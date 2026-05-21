@@ -384,7 +384,6 @@ body { font-family: var(--font-ui); font-size: 14px; display: flex; flex-directi
 .card-btn-stop:hover  { color: var(--danger); }
 .card-btn-kill:hover  { color: var(--danger); background: rgba(248, 113, 113, 0.08); }
 .card-btn-log:hover   { color: var(--accent2); }
-.card-btn-view:hover  { color: var(--accent2); }
 .card-btn-edit:hover  { color: var(--warn); }
 
 /* ── Tag chip input ─────────────────────────────────────────────────────────── */
