@@ -3,6 +3,7 @@ const { spawn, exec } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+const pty = require('node-pty-prebuilt-multiarch');
 
 const { buildTrayIcon, buildAppIcon } = require('./tray-icon');
 const { loadState, saveState } = require('./state');
@@ -81,6 +82,7 @@ function saveConfig(data) {
 // ─── Live process registry (in-memory, not persisted) ────────────────────────
 // pid → { pid, commandId, startedAt, logFile, process? }
 const liveProcesses = new Map();
+const ptyProcesses = new Map(); // commandId → pty process
 
 // ─── Window & Tray ───────────────────────────────────────────────────────────
 let mainWindow = null;
@@ -395,6 +397,35 @@ ipcMain.handle('open-log-dir', () => {
   return true;
 });
 
+ipcMain.handle('pty-create', (_, { commandId }) => {
+  if (ptyProcesses.has(commandId)) return { ok: true };
+  const shell = process.platform === 'win32'
+    ? 'powershell.exe'
+    : (process.env.SHELL || '/bin/bash');
+  const ptyProcess = pty.spawn(shell, [], {
+    name: 'xterm-color',
+    cols: 80,
+    rows: 24,
+    cwd: os.homedir(),
+    env: process.env,
+  });
+  ptyProcess.onData(data => {
+    if (mainWindow) mainWindow.webContents.send('pty-data', { commandId, data });
+  });
+  ptyProcesses.set(commandId, ptyProcess);
+  return { ok: true };
+});
+
+ipcMain.handle('pty-write', (_, { commandId, data }) => {
+  ptyProcesses.get(commandId)?.write(data);
+  return { ok: true };
+});
+
+ipcMain.handle('pty-resize', (_, { commandId, cols, rows }) => {
+  ptyProcesses.get(commandId)?.resize(cols, rows);
+  return { ok: true };
+});
+
 ipcMain.handle('window-minimize', () => mainWindow.minimize());
 ipcMain.handle('window-hide', () => mainWindow.hide());
 ipcMain.handle('window-maximize', () => {
@@ -467,4 +498,7 @@ app.on('window-all-closed', (e) => {
 
 app.on('will-quit', () => {
   globalShortcut.unregisterAll();
+  for (const ptyProc of ptyProcesses.values()) {
+    try { ptyProc.kill(); } catch {}
+  }
 });

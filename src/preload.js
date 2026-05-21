@@ -30,6 +30,12 @@ contextBridge.exposeInMainWorld('api', {
   getAutostart: () => ipcRenderer.invoke('get-autostart'),
   setAutostart: (enabled) => ipcRenderer.invoke('set-autostart', enabled),
 
+  // PTY (in-app terminal)
+  ptyCreate:  (commandId) => ipcRenderer.invoke('pty-create', { commandId }),
+  ptyWrite:   (commandId, data) => ipcRenderer.invoke('pty-write', { commandId, data }),
+  ptyResize:  (commandId, cols, rows) => ipcRenderer.invoke('pty-resize', { commandId, cols, rows }),
+  onPtyData:  (cb) => ipcRenderer.on('pty-data', (_, payload) => cb(payload)),
+
   // Events from main → renderer
   onProcessExited: (cb) => ipcRenderer.on('process-exited', (_, data) => cb(data)),
   onProcessOutput: (cb) => ipcRenderer.on('process-output', (_, data) => cb(data)),
