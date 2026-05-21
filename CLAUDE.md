@@ -10,10 +10,11 @@ Built as an open-source project, Electron lets us ship fast and validate the con
 
 ## Tech Stack
 
-- **Runtime:** Electron (v29+)
+- **Runtime:** Electron (v42)
 - **Frontend:** Vanilla JS, HTML, CSS (no framework — intentionally simple for now)
-- **Fonts:** JetBrains Mono (code/mono) + Syne (UI) via Google Fonts
+- **Fonts:** JetBrains Mono (code/mono) + Syne (UI) — bundled WOFF2 in `src/renderer/fonts/` (no CDN)
 - **Drag-to-reorder:** SortableJS (loaded from `node_modules` via `<script>` tag, no bundler)
+- **In-app terminal:** xterm.js v4 + xterm-addon-fit (loaded via `<script>` tags, no bundler); node-pty for PTY backend
 - **Config storage:** `~/.commanddeck/commands.json` (plain JSON, human-readable, git-friendly)
 - **Log storage:** `~/.commanddeck/logs/` (one timestamped `.log` file per command run)
 - **IPC:** Electron's contextBridge + ipcMain/ipcRenderer (context isolation enabled)
@@ -57,7 +58,7 @@ This is the core data model — get this right and everything else follows.
 | Toggle | `"toggle"` | `onCmd`, `offCmd` | ON runs and exits (one-shot), OFF runs and exits. No persistent PID. Perfect for `pactl load/unload`. |
 | Launcher | `"launcher"` | `launchCmd` | Spawns detached (`detached: true`, `unref()`). App lives on after CommandDeck closes. PID tracked until exit. |
 | Foreground | `"foreground"` | `onCmd` | Spawns managed. stdout/stderr streamed to UI drawer and log file. Killable. |
-| Cheatsheet | `"cheatsheet"` | `content` | Read-only reference card. No command runs. Content displayed in the output drawer. |
+| Cheatsheet | `"cheatsheet"` | `content` | Read-only reference card. No command runs. Has three actions: OPEN (system terminal), TERM (in-app terminal drawer), EDIT. Content is newline-separated; each line is a clickable snippet in the TERM drawer. |
 
 ## Config Schema (`~/.commanddeck/commands.json`)
 
@@ -119,10 +120,16 @@ All calls go through `window.api.*`:
 | `savePrefs(data)` | Writes `prefs.json`, re-registers global hotkey |
 | `getAutostart()` | Returns `true` if `~/.config/autostart/commanddeck.desktop` exists |
 | `setAutostart(enabled)` | Writes or removes the autostart `.desktop` file |
+| `openInTerminal({ content, cmdId })` | Opens user's system terminal emulator displaying cheatsheet content, then hands off to an interactive shell |
+| `ptyCreate(commandId)` | Creates a PTY session for a cheatsheet card (idempotent — no-op if already exists) |
+| `ptyWrite(commandId, data)` | Writes data/keystrokes to a PTY session |
+| `ptyResize(commandId, cols, rows)` | Resizes a PTY session to match the xterm display |
 
 Events from main → renderer via `ipcRenderer.on`:
 - `process-exited` → `{ commandId, pid, code }`
 - `process-output` → `{ commandId, pid, text }`
+- `pty-data` → `{ commandId, data }` — PTY output chunk for a cheatsheet terminal session
+- `pty-exit` → `{ commandId, exitCode }` — PTY session ended (shell exited)
 
 ## Known Gaps / Improvement Areas
 
@@ -148,6 +155,13 @@ These were identified at the end of the prototype session — good starting poin
 
 9. **Packaging** — `.deb`, AppImage, or Snap for distribution. `electron-builder` is the standard tool.
 
+10. ~~**Cheatsheet terminal integration**~~ — **Done** (branch `feature/new-command-cheatsheet`). Three additions to cheatsheet cards:
+    - **DEL moved to modal** — Delete button removed from card surface for all card types; now lives in the Edit modal footer (`.btn-danger`, hidden until Edit opens).
+    - **OPEN button** — Launches user's system terminal emulator (`$TERMINAL` → PATH scan: kitty, alacritty, gnome-terminal, xfce4-terminal, konsole) displaying the cheatsheet content via `cat`, then hands off to an interactive shell. Content written to a secure temp file (`0o600`), cleaned up after 30 s.
+    - **TERM button** — Opens an embedded xterm.js terminal in the drawer. Each cheatsheet card gets its own persistent PTY session (node-pty, one per `commandId`). A snippet panel above the terminal shows each content line as a clickable chip that sends the command to the PTY. Writes are queued (`pendingWrites[]`) until the first `pty-data` event signals the shell is interactive, then flushed. PTY sessions survive drawer close/reopen; sessions are killed on app quit.
+
+    **Open issue:** When using OPEN (system terminal), the cheatsheet content is displayed as `cat` output before the interactive shell prompt. There is no mechanism to send keystrokes to the system terminal after launch, so individual lines cannot be run with a single click from OPEN. TERM (in-app) is the preferred workflow for interactive use.
+
 ## Developer Notes
 
 - **No build step** — this is intentionally plain JS/HTML/CSS. No webpack, no transpilation. `npm start` runs directly.
@@ -155,6 +169,9 @@ These were identified at the end of the prototype session — good starting poin
 - **In-memory live state** — `liveProcesses` Map in `main.js` and `liveMap` object in `app.js` are not persisted. App restart clears them. This is fine for now (foreground processes die with the app anyway; launchers are detached and survive but lose tracking).
 - **Process kill behavior** — All spawned processes use `detached: true` so each becomes a process group leader. Kill signals use `process.kill(-pid, 'SIGTERM')` (negative PID) to reach the entire process group — this ensures bash's children (the actual command) receive the signal, not just the bash wrapper. On quit, only non-launcher processes are stopped; launcher processes intentionally keep running. Note: with `detached: true`, foreground processes are removed from Node's controlling terminal session, so Ctrl+C in the terminal (during `npm start` development) will not propagate to foreground child processes — use the app's KILL button or quit instead.
 - **Log file per run** — each invocation of a command creates a new log file with timestamp in the name. Old logs are never cleaned up automatically (future: log rotation).
+- **node-pty native module** — uses Microsoft's `node-pty` (not `node-pty-prebuilt-multiarch`). It includes C++ source and is compiled by `electron-rebuild` on `npm install` (via `postinstall`). A `patch-package` patch in `patches/node-pty+1.1.0.patch` forces `-std=c++20` in `binding.gyp` — required because Electron 42 uses Node.js 24 headers which mandate C++20. Do not remove the patch or switch to `node-pty-prebuilt-multiarch`; the prebuilt package has no binary for Electron 42's ABI (v146) and its npm release omits the C++ source.
+- **PTY session lifecycle** — `ptyProcesses` Map in `main.js` holds one PTY per cheatsheet `commandId`. `pty-create` is idempotent (skips if already exists). `pty-exit` event deletes the map entry so the next open re-creates cleanly. All PTY processes are killed in the `will-quit` handler.
+- **xterm instances** — `terminalMap` in `app.js` holds `{ term, fitAddon, ready, pendingWrites }` per `commandId`. The entry is set (with `ready: false`) before `await ptyCreate` so concurrent drawer opens can queue snippet writes into `pendingWrites[]`. The global `onPtyData` listener flushes the queue on the first data event. `onPtyExit` deletes the map entry so the terminal re-initialises on next open.
 - **`app.js` is a single file** — fine for prototype, but as features grow, consider splitting into modules: `state.js`, `cards.js`, `modal.js`, `drawer.js`.
 - **`utils.js` dual-environment pattern** — `src/renderer/utils.js` is loaded as a `<script>` tag in the browser (globals) and also `require()`-able in Node.js tests via `if (typeof module !== 'undefined') module.exports = ...`. New pure renderer utilities should follow this pattern.
 - **Tags vs. group** — the old `group: string` field is obsolete. The schema now uses `tags: string[]`. `migrateCommands()` in `utils.js` auto-converts old configs on `loadAll()` — no manual migration needed. Never write a `group` field to `commands.json`.
