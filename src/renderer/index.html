@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CommandDeck</title>
   <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="../../node_modules/xterm/css/xterm.css" />
 </head>
 <body>
   <!-- Custom title bar -->
@@ -21,6 +22,7 @@
       <button class="tb-btn" id="btn-import" title="Import config">↓</button>
       <button class="tb-btn" id="btn-prefs" title="Preferences">⚙</button>
       <button class="tb-btn" id="btn-minimize" title="Minimize">−</button>
+      <button class="tb-btn" id="btn-maximize" title="Maximize">□</button>
       <button class="tb-btn tb-btn-close" id="btn-hide" title="Hide to tray">×</button>
     </div>
   </div>
@@ -73,8 +75,14 @@
             <option value="toggle">Toggle (ON/OFF commands)</option>
             <option value="launcher">Launcher (fire &amp; forget)</option>
             <option value="foreground">Foreground (runs in managed terminal)</option>
+            <option value="cheatsheet">Cheatsheet (read-only reference)</option>
           </select>
         </label>
+        <div id="f-content-row" style="display:none">
+          <label>Content <span class="required">*</span>
+            <textarea id="f-content" rows="6" placeholder="Enter reference content…"></textarea>
+          </label>
+        </div>
         <div id="f-on-row">
           <label id="f-on-label">ON Command <span class="required">*</span>
             <input type="text" id="f-on" placeholder="e.g. pactl load-module module-loopback latency_msec=1" />
@@ -99,6 +107,7 @@
         </label>
       </div>
       <div class="modal-footer">
+        <button class="btn-danger" id="modal-delete" style="display:none;margin-right:auto">Delete</button>
         <button class="btn-secondary" id="modal-cancel">Cancel</button>
         <button class="btn-primary" id="modal-save">Save Command</button>
       </div>
@@ -145,18 +154,24 @@
 
   <!-- Output drawer -->
   <div class="drawer" id="output-drawer">
+    <div class="drawer-resize-handle" id="drawer-resize-handle"></div>
     <div class="drawer-header">
       <span id="drawer-title">Output</span>
       <div class="drawer-actions">
+        <button class="tb-btn" id="drawer-run-all" style="display:none">Run all</button>
         <button class="tb-btn" id="drawer-open-log">Open log file</button>
         <button class="tb-btn" id="drawer-close">×</button>
       </div>
     </div>
     <pre class="drawer-output" id="drawer-output"></pre>
+    <div id="drawer-snippet-panel" style="display:none"></div>
+    <div id="drawer-terminals" style="display:none"></div>
   </div>
 
   <script src="utils.js"></script>
   <script src="../../node_modules/sortablejs/Sortable.min.js"></script>
+  <script src="../../node_modules/xterm/lib/xterm.js"></script>
+  <script src="../../node_modules/xterm-addon-fit/lib/xterm-addon-fit.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

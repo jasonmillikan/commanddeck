@@ -6,7 +6,8 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "postinstall": "patch-package && electron-rebuild"
   },
   "keywords": [
     "electron",
@@ -18,9 +19,14 @@
   "author": "Jason Millikan",
   "license": "MIT",
   "devDependencies": {
-    "electron": "^42.0.0"
+    "electron": "^42.0.0",
+    "electron-rebuild": "^3.2.9",
+    "patch-package": "^8.0.1"
   },
   "dependencies": {
-    "sortablejs": "^1.15.7"
+    "node-pty": "^1.1.0",
+    "sortablejs": "^1.15.7",
+    "xterm": "^4.19.0",
+    "xterm-addon-fit": "^0.5.0"
   }
 }

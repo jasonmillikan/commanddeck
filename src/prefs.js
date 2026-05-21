@@ -2,6 +2,7 @@ const fs = require('fs');
 
 const DEFAULTS = {
   hotkey: 'Super+D',
+  drawerHeight: 240,
   notify: {
     onCrash: true,
     onUnexpectedExit: false,

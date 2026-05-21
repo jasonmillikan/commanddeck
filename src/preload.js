@@ -17,6 +17,8 @@ contextBridge.exposeInMainWorld('api', {
   // Window controls
   minimize: () => ipcRenderer.invoke('window-minimize'),
   hide: () => ipcRenderer.invoke('window-hide'),
+  toggleMaximize: () => ipcRenderer.invoke('window-maximize'),
+  onWindowMaximized: (cb) => ipcRenderer.on('window-maximized', (_, v) => cb(v)),
 
   // Import / Export
   exportConfig: () => ipcRenderer.invoke('export-config'),
@@ -27,6 +29,24 @@ contextBridge.exposeInMainWorld('api', {
   savePrefs: (data) => ipcRenderer.invoke('save-prefs', data),
   getAutostart: () => ipcRenderer.invoke('get-autostart'),
   setAutostart: (enabled) => ipcRenderer.invoke('set-autostart', enabled),
+
+  // System terminal
+  openInTerminal: (content, cmdId) => ipcRenderer.invoke('open-in-terminal', { content, cmdId }),
+
+  // PTY (in-app terminal)
+  ptyCreate:  (commandId) => ipcRenderer.invoke('pty-create', { commandId }),
+  ptyWrite:   (commandId, data) => ipcRenderer.invoke('pty-write', { commandId, data }),
+  ptyResize:  (commandId, cols, rows) => ipcRenderer.invoke('pty-resize', { commandId, cols, rows }),
+  onPtyData:  (cb) => {
+    const handler = (_, payload) => cb(payload);
+    ipcRenderer.on('pty-data', handler);
+    return () => ipcRenderer.removeListener('pty-data', handler);
+  },
+  onPtyExit:  (cb) => {
+    const handler = (_, payload) => cb(payload);
+    ipcRenderer.on('pty-exit', handler);
+    return () => ipcRenderer.removeListener('pty-exit', handler);
+  },
 
   // Events from main → renderer
   onProcessExited: (cb) => ipcRenderer.on('process-exited', (_, data) => cb(data)),

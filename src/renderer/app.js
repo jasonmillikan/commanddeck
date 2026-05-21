@@ -12,6 +12,8 @@ let drawerCommandId = null;
 let drawerLogFile = null;
 let sortableInstance = null;
 let prefs = { hotkey: '', notify: { onCrash: true, onUnexpectedExit: false } };
+const terminalMap = new Map(); // commandId → { term, fitAddon }
+let activeTerminalId = null;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function uid() {
@@ -48,6 +50,7 @@ async function loadAll() {
   if (changed) await window.api.saveConfig(config);
   liveMap = await window.api.getLiveProcesses();
   prefs = await window.api.loadPrefs();
+  document.getElementById('output-drawer').style.height = (prefs.drawerHeight || 240) + 'px';
   renderAll();
 }
 
@@ -80,18 +83,42 @@ function filteredCommands() {
     const searchOk = !q ||
       cmd.label.toLowerCase().includes(q) ||
       (cmd.note || '').toLowerCase().includes(q) ||
-      (cmd.onCmd || '').toLowerCase().includes(q);
+      (cmd.onCmd || '').toLowerCase().includes(q) ||
+      (cmd.content || '').toLowerCase().includes(q);
     return tagOk && searchOk;
   });
 }
 
 function badgeFor(type) {
-  const map = { toggle: 'badge-toggle', launcher: 'badge-launcher', foreground: 'badge-foreground' };
-  const labels = { toggle: 'TOGGLE', launcher: 'LAUNCHER', foreground: 'FOREGROUND' };
+  const map = { toggle: 'badge-toggle', launcher: 'badge-launcher', foreground: 'badge-foreground', cheatsheet: 'badge-cheatsheet' };
+  const labels = { toggle: 'TOGGLE', launcher: 'LAUNCHER', foreground: 'FOREGROUND', cheatsheet: 'SHEET' };
   return `<span class="card-type-badge ${map[type]}">${labels[type]}</span>`;
 }
 
 function renderCard(cmd) {
+  if (cmd.type === 'cheatsheet') {
+    const previewLine = (cmd.content || '').split('\n')[0] || '';
+    return `
+      <div class="card" data-id="${cmd.id}">
+        <div class="card-drag-handle">⠿</div>
+        <div class="card-body" data-action="term" data-id="${cmd.id}">
+          <div class="card-header">
+            <div class="card-info">
+              <div class="card-label">${escHtml(cmd.label)}</div>
+              ${cmd.note ? `<div class="card-note">${escHtml(cmd.note)}</div>` : ''}
+            </div>
+            ${badgeFor(cmd.type)}
+          </div>
+          <div class="card-cmd" title="${escHtml(cmd.content || '')}">${escHtml(previewLine)}</div>
+          <div class="card-actions">
+            <button class="card-btn card-btn-open" data-action="open" data-id="${cmd.id}">OPEN</button>
+            <button class="card-btn card-btn-term" data-action="term" data-id="${cmd.id}">TERM</button>
+            <button class="card-btn card-btn-edit" data-action="edit" data-id="${cmd.id}">EDIT</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
   const running = commandIsRunning(cmd.id);
   const pid = getFirstPid(cmd.id);
   const startedAt = getStartedAt(cmd.id);
@@ -121,20 +148,17 @@ function renderCard(cmd) {
     actionsHtml = `
       <button class="card-btn card-btn-log"    data-action="log"    data-id="${cmd.id}">LOG</button>
       <button class="card-btn card-btn-edit"   data-action="edit"   data-id="${cmd.id}">EDIT</button>
-      <button class="card-btn card-btn-delete" data-action="delete" data-id="${cmd.id}">DEL</button>
     `;
   } else if (cmd.type === 'launcher') {
     actionsHtml = `
       <button class="card-btn card-btn-log"    data-action="log"    data-id="${cmd.id}">LOG</button>
       <button class="card-btn card-btn-edit"   data-action="edit"   data-id="${cmd.id}">EDIT</button>
-      <button class="card-btn card-btn-delete" data-action="delete" data-id="${cmd.id}">DEL</button>
     `;
   } else { // foreground
     actionsHtml = `
       ${running ? `<button class="card-btn card-btn-kill" data-action="kill" data-id="${cmd.id}">KILL</button>` : ''}
       <button class="card-btn card-btn-log"    data-action="log"    data-id="${cmd.id}">LOG</button>
       <button class="card-btn card-btn-edit"   data-action="edit"   data-id="${cmd.id}">EDIT</button>
-      <button class="card-btn card-btn-delete" data-action="delete" data-id="${cmd.id}">DEL</button>
     `;
   }
 
@@ -327,15 +351,16 @@ async function handleCardAction(action, id, checked) {
       renderAll();
     }
   } else if (action === 'log') {
-    openDrawer(cmd);
+    openDrawer(cmd, 'output');
+  } else if (action === 'term') {
+    openDrawer(cmd, 'term');
+  } else if (action === 'open') {
+    const result = await window.api.openInTerminal(cmd.content, cmd.id);
+    if (result && !result.ok && result.reason === 'no_terminal') {
+      new Notification('No terminal found', { body: 'Set the $TERMINAL environment variable to your terminal emulator.' });
+    }
   } else if (action === 'edit') {
     openModal(cmd);
-  } else if (action === 'delete') {
-    if (confirm(`Delete "${cmd.label}"?`)) {
-      config.commands = config.commands.filter(c => c.id !== id);
-      await persist();
-      renderAll();
-    }
   }
 }
 
@@ -383,23 +408,112 @@ async function stopCommand(cmd) {
   renderAll();
 }
 
+// ─── In-app terminal ─────────────────────────────────────────────────────────
+async function initTerminal(cmd) {
+  if (terminalMap.has(cmd.id)) return;
+  terminalMap.set(cmd.id, null); // claim slot before any await to prevent double-init on concurrent calls
+  const container = document.createElement('div');
+  container.id = `terminal-${cmd.id}`;
+  container.className = 'terminal-instance xterm-hidden';
+  document.getElementById('drawer-terminals').appendChild(container);
+
+  const term = new Terminal({
+    theme: { background: '#12151f', foreground: '#e2e8f0', cursor: '#4ade80' },
+    fontFamily: 'JetBrains Mono, monospace',
+    fontSize: 13,
+    cursorBlink: true,
+  });
+  const fitAddon = new FitAddon.FitAddon();
+  term.loadAddon(fitAddon);
+  term.open(container);
+  term.onData(data => window.api.ptyWrite(cmd.id, data));
+  terminalMap.set(cmd.id, { term, fitAddon, ready: false, pendingWrites: [] });
+  try {
+    await window.api.ptyCreate(cmd.id);
+  } catch (err) {
+    terminalMap.delete(cmd.id);
+    container.remove();
+    throw err;
+  }
+}
+
+function switchToTerminal(cmdId) {
+  document.querySelectorAll('.terminal-instance').forEach(el => el.classList.add('xterm-hidden'));
+  const container = document.getElementById(`terminal-${cmdId}`);
+  if (container) container.classList.remove('xterm-hidden');
+  const entry = terminalMap.get(cmdId);
+  if (entry) {
+    entry.fitAddon.fit();
+    const { cols, rows } = entry.term;
+    window.api.ptyResize(cmdId, cols, rows);
+  }
+  activeTerminalId = cmdId;
+}
+
 // ─── Output drawer ────────────────────────────────────────────────────────────
-function openDrawer(cmd) {
+function openDrawer(cmd, mode = 'output') {
   drawerCommandId = cmd.id;
-  drawerLogFile = getLogFile(cmd.id);
+  const logBtn = document.getElementById('drawer-open-log');
+  const runAllBtn = document.getElementById('drawer-run-all');
+  const outputEl = document.getElementById('drawer-output');
+  const snippetPanel = document.getElementById('drawer-snippet-panel');
+  const terminalsEl = document.getElementById('drawer-terminals');
   document.getElementById('drawer-title').textContent = `▸ ${cmd.label}`;
-  const out = document.getElementById('drawer-output');
-  const lines = outputMap[cmd.id] || [];
-  out.textContent = lines.length ? lines.join('') : '(no output captured yet — start the command first)';
-  out.scrollTop = out.scrollHeight;
-  document.getElementById('output-drawer').classList.add('open');
+
+  if (mode === 'term') {
+    logBtn.style.display = 'none';
+    runAllBtn.style.display = '';
+    outputEl.style.display = 'none';
+    snippetPanel.style.display = '';
+    terminalsEl.style.display = '';
+
+    snippetPanel.innerHTML = (cmd.content || '')
+      .split('\n')
+      .map(line => `<div class="snippet-line" data-cmd="${escHtml(line)}">${escHtml(line)}</div>`)
+      .join('');
+
+    snippetPanel.onclick = (e) => {
+      const lineEl = e.target.closest('.snippet-line');
+      if (!lineEl) return;
+      const entry = terminalMap.get(cmd.id);
+      if (entry?.ready) {
+        window.api.ptyWrite(cmd.id, lineEl.dataset.cmd);
+      } else if (entry) {
+        entry.pendingWrites.push(lineEl.dataset.cmd);
+      }
+    };
+
+    initTerminal(cmd).then(() => switchToTerminal(cmd.id));
+  } else {
+    logBtn.style.display = cmd.type === 'cheatsheet' ? 'none' : '';
+    runAllBtn.style.display = 'none';
+    outputEl.style.display = '';
+    snippetPanel.style.display = 'none';
+    terminalsEl.style.display = 'none';
+    drawerLogFile = getLogFile(cmd.id);
+    const lines = outputMap[cmd.id] || [];
+    outputEl.textContent = lines.length ? lines.join('') : '(no output captured yet — start the command first)';
+    outputEl.scrollTop = outputEl.scrollHeight;
+  }
+
+  const drawer = document.getElementById('output-drawer');
+  drawer.classList.add('open');
+  document.querySelector('.board').style.paddingBottom = drawer.offsetHeight + 'px';
 }
 
 document.getElementById('drawer-close').addEventListener('click', () => {
   document.getElementById('output-drawer').classList.remove('open');
+  document.querySelector('.board').style.paddingBottom = '';
 });
 document.getElementById('drawer-open-log').addEventListener('click', async () => {
   if (drawerLogFile) await window.api.openLog(drawerLogFile);
+});
+document.getElementById('drawer-run-all').addEventListener('click', () => {
+  if (!drawerCommandId) return;
+  const cmd = config.commands.find(c => c.id === drawerCommandId);
+  if (!cmd?.content) return;
+  const lines = cmd.content.split('\n').filter(l => l.trim() !== '');
+  lines.forEach(line => window.api.ptyWrite(drawerCommandId, line + '\r'));
 });
 
 // ─── Modal ────────────────────────────────────────────────────────────────────
@@ -431,11 +545,13 @@ function openModal(cmd = null) {
   document.getElementById('f-on').value = cmd?.onCmd || cmd?.launchCmd || '';
   document.getElementById('f-off').value = cmd?.offCmd || '';
   document.getElementById('f-auto-restore').checked = cmd?.autoRestore || false;
+  document.getElementById('f-content').value = cmd?.content || '';
   modalTags = [...(cmd?.tags || [])];
   populateTagsDatalist();
   renderTagChips();
   document.getElementById('f-tags-input').value = '';
   updateModalFields();
+  document.getElementById('modal-delete').style.display = editingId ? '' : 'none';
   document.getElementById('modal-backdrop').classList.add('open');
   document.getElementById('f-label').focus();
 }
@@ -443,8 +559,20 @@ function openModal(cmd = null) {
 function updateModalFields() {
   const type = document.getElementById('f-type').value;
   const onLabel = document.getElementById('f-on-label');
+  const onRow = document.getElementById('f-on-row');
   const offRow = document.getElementById('f-off-row');
   const autoRestoreRow = document.getElementById('f-auto-restore-row');
+  const contentRow = document.getElementById('f-content-row');
+
+  if (type === 'cheatsheet') {
+    onRow.style.display = 'none';
+    offRow.style.display = 'none';
+    autoRestoreRow.style.display = 'none';
+    contentRow.style.display = '';
+    return;
+  }
+  contentRow.style.display = 'none';
+  onRow.style.display = '';
   if (type === 'toggle') {
     onLabel.firstChild.textContent = 'ON Command ';
     offRow.style.display = '';
@@ -466,11 +594,22 @@ document.getElementById('f-type').addEventListener('change', updateModalFields);
 
 function closeModal() {
   document.getElementById('modal-backdrop').classList.remove('open');
+  document.getElementById('modal-delete').style.display = 'none';
   editingId = null;
 }
 
 document.getElementById('modal-close').addEventListener('click', closeModal);
 document.getElementById('modal-cancel').addEventListener('click', closeModal);
+document.getElementById('modal-delete').addEventListener('click', async () => {
+  const cmd = config.commands.find(c => c.id === editingId);
+  if (!cmd) return;
+  if (confirm(`Delete "${cmd.label}"?`)) {
+    config.commands = config.commands.filter(c => c.id !== editingId);
+    await persist();
+    closeModal();
+    renderAll();
+  }
+});
 document.getElementById('modal-backdrop').addEventListener('click', e => {
   if (e.target === e.currentTarget) closeModal();
 });
@@ -513,14 +652,38 @@ document.getElementById('f-tags-input').addEventListener('change', e => {
 document.getElementById('modal-save').addEventListener('click', async () => {
   const label = document.getElementById('f-label').value.trim();
   const type = document.getElementById('f-type').value;
-  const onCmd = document.getElementById('f-on').value.trim();
-  if (!label || !onCmd) { alert('Label and command are required.'); return; }
 
   // Flush any partially-typed tag in the input
   const tagInput = document.getElementById('f-tags-input');
   const pending = tagInput.value.trim().replace(/,$/, '');
   if (pending && !modalTags.includes(pending)) modalTags.push(pending);
   tagInput.value = '';
+
+  if (type === 'cheatsheet') {
+    const content = document.getElementById('f-content').value.trim();
+    if (!label || !content) { alert('Label and content are required.'); return; }
+    const entry = {
+      id: editingId || uid(),
+      label,
+      note: document.getElementById('f-note').value.trim(),
+      type: 'cheatsheet',
+      tags: [...modalTags],
+      content,
+    };
+    if (editingId) {
+      const idx = config.commands.findIndex(c => c.id === editingId);
+      if (idx !== -1) config.commands[idx] = entry;
+    } else {
+      config.commands.push(entry);
+    }
+    await persist();
+    closeModal();
+    renderAll();
+    return;
+  }
+
+  const onCmd = document.getElementById('f-on').value.trim();
+  if (!label || !onCmd) { alert('Label and command are required.'); return; }
 
   const entry = {
     id: editingId || uid(),
@@ -567,7 +730,13 @@ function closePrefsModal() {
 // ─── Titlebar controls ────────────────────────────────────────────────────────
 document.getElementById('btn-add').addEventListener('click', () => openModal());
 document.getElementById('btn-minimize').addEventListener('click', () => window.api.minimize());
+document.getElementById('btn-maximize').addEventListener('click', () => window.api.toggleMaximize());
 document.getElementById('btn-hide').addEventListener('click', () => window.api.hide());
+window.api.onWindowMaximized(isMax => {
+  const btn = document.getElementById('btn-maximize');
+  btn.textContent = isMax ? '❐' : '□';
+  btn.title = isMax ? 'Restore' : 'Maximize';
+});
 document.getElementById('btn-open-logs').addEventListener('click', () => window.api.openLogDir());
 document.getElementById('btn-prefs').addEventListener('click', openPrefsModal);
 document.getElementById('prefs-close').addEventListener('click', closePrefsModal);
@@ -586,6 +755,7 @@ document.getElementById('p-hotkey-clear').addEventListener('click', () => {
 document.getElementById('prefs-save').addEventListener('click', async () => {
   const hotkey = document.getElementById('p-hotkey').value.trim();
   const updated = {
+    ...prefs,
     hotkey,
     notify: {
       onCrash: document.getElementById('p-notify-crash').checked,
@@ -646,4 +816,50 @@ window.api.onProcessOutput(({ commandId, pid, text }) => {
 });
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────
+window.api.onPtyData(({ commandId, data }) => {
+  const entry = terminalMap.get(commandId);
+  if (!entry) return;
+  entry.term.write(data);
+  if (!entry.ready) {
+    entry.ready = true;
+    entry.pendingWrites.splice(0).forEach(d => window.api.ptyWrite(commandId, d));
+  }
+});
+window.api.onPtyExit(({ commandId }) => {
+  terminalMap.delete(commandId);
+});
+
 loadAll();
+
+(function initDrawerResize() {
+  const handle = document.getElementById('drawer-resize-handle');
+  const drawer = document.getElementById('output-drawer');
+  handle.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    const board = document.querySelector('.board');
+    function onMove(e) {
+      const newHeight = Math.round(
+        Math.min(Math.max(window.innerHeight - e.clientY, 100), window.innerHeight * 0.6)
+      );
+      drawer.style.height = newHeight + 'px';
+      if (drawer.classList.contains('open')) board.style.paddingBottom = newHeight + 'px';
+    }
+    function onUp() {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      const newHeight = parseInt(drawer.style.height, 10);
+      prefs = { ...prefs, drawerHeight: newHeight };
+      window.api.savePrefs(prefs);
+      if (activeTerminalId) {
+        const entry = terminalMap.get(activeTerminalId);
+        if (entry) {
+          entry.fitAddon.fit();
+          const { cols, rows } = entry.term;
+          window.api.ptyResize(activeTerminalId, cols, rows);
+        }
+      }
+    }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+})();

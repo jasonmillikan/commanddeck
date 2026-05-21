@@ -3,6 +3,7 @@ const { spawn, exec } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+const pty = require('node-pty');
 
 const { buildTrayIcon, buildAppIcon } = require('./tray-icon');
 const { loadState, saveState } = require('./state');
@@ -78,9 +79,23 @@ function saveConfig(data) {
   fs.writeFileSync(CONFIG_PATH, JSON.stringify(data, null, 2));
 }
 
+function detectTerminalApp() {
+  // PATH uses ':' as separator — this function is Linux-only (macOS/Windows callers return early)
+  const dirs = (process.env.PATH || '').split(':');
+  // xterm excluded: it uses -e rather than -- for command execution
+  const candidates = process.env.TERMINAL
+    ? [process.env.TERMINAL, 'kitty', 'alacritty', 'gnome-terminal', 'xfce4-terminal', 'konsole']
+    : ['kitty', 'alacritty', 'gnome-terminal', 'xfce4-terminal', 'konsole'];
+  for (const t of candidates) {
+    if (dirs.some(d => fs.existsSync(path.join(d, t)))) return t;
+  }
+  return null;
+}
+
 // ─── Live process registry (in-memory, not persisted) ────────────────────────
 // pid → { pid, commandId, startedAt, logFile, process? }
 const liveProcesses = new Map();
+const ptyProcesses = new Map(); // commandId → pty process
 
 // ─── Window & Tray ───────────────────────────────────────────────────────────
 let mainWindow = null;
@@ -128,6 +143,9 @@ function createWindow() {
     alertState = null;
     updateTrayIcon();
   });
+
+  mainWindow.on('maximize', () => mainWindow.webContents.send('window-maximized', true));
+  mainWindow.on('unmaximize', () => mainWindow.webContents.send('window-maximized', false));
 }
 
 function createTray() {
@@ -392,8 +410,72 @@ ipcMain.handle('open-log-dir', () => {
   return true;
 });
 
+ipcMain.handle('pty-create', (_, { commandId }) => {
+  if (ptyProcesses.has(commandId)) return { ok: true };
+  const shellExe = process.platform === 'win32'
+    ? 'powershell.exe'
+    : (process.env.SHELL || '/bin/bash');
+  const ptyProcess = pty.spawn(shellExe, [], {
+    name: 'xterm-color',
+    cols: 80,
+    rows: 24,
+    cwd: os.homedir(),
+    env: process.env,
+  });
+  ptyProcess.onData(data => {
+    if (mainWindow) mainWindow.webContents.send('pty-data', { commandId, data });
+  });
+  ptyProcess.onExit(({ exitCode }) => {
+    ptyProcesses.delete(commandId);
+    if (mainWindow) mainWindow.webContents.send('pty-exit', { commandId, exitCode });
+  });
+  ptyProcesses.set(commandId, ptyProcess);
+  return { ok: true };
+});
+
+ipcMain.handle('pty-write', (_, { commandId, data }) => {
+  if (typeof data !== 'string') return { ok: false };
+  ptyProcesses.get(commandId)?.write(data);
+  return { ok: true };
+});
+
+ipcMain.handle('pty-resize', (_, { commandId, cols, rows }) => {
+  if (!Number.isInteger(cols) || cols < 1 || !Number.isInteger(rows) || rows < 1) return { ok: false };
+  ptyProcesses.get(commandId)?.resize(cols, rows);
+  return { ok: true };
+});
+
+ipcMain.handle('open-in-terminal', async (_, { content, cmdId }) => {
+  if (typeof content !== 'string' || typeof cmdId !== 'string') return { ok: false, reason: 'invalid_args' };
+  const safeCmdId = cmdId.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64);
+  const tmpFile = path.join(os.tmpdir(), `commanddeck-${safeCmdId}-${Date.now()}.sh`);
+  fs.writeFileSync(tmpFile, content, { mode: 0o600 });
+  setTimeout(() => { try { fs.unlinkSync(tmpFile); } catch {} }, 30000);
+
+  if (process.platform === 'darwin') {
+    const script = `tell application "Terminal" to do script "cat '${tmpFile}'; exec $SHELL"`;
+    spawn('osascript', ['-e', script], { detached: true, stdio: 'ignore' }).unref();
+    return { ok: true };
+  }
+
+  if (process.platform === 'win32') {
+    spawn('cmd', ['/K', `type "${tmpFile}"`], { detached: true, stdio: 'ignore' }).unref();
+    return { ok: true };
+  }
+
+  const terminal = detectTerminalApp();
+  if (!terminal) return { ok: false, reason: 'no_terminal' };
+  // Pass tmpFile as $1 to avoid shell interpolation
+  spawn(terminal, ['--', 'bash', '-c', 'cat "$1"; exec $SHELL', '--', tmpFile], { detached: true, stdio: 'ignore' }).unref();
+  return { ok: true };
+});
+
 ipcMain.handle('window-minimize', () => mainWindow.minimize());
 ipcMain.handle('window-hide', () => mainWindow.hide());
+ipcMain.handle('window-maximize', () => {
+  if (mainWindow.isMaximized()) mainWindow.unmaximize();
+  else mainWindow.maximize();
+});
 
 ipcMain.handle('export-config', async () => {
   const ts = new Date().toISOString().slice(0, 10);
@@ -460,4 +542,7 @@ app.on('window-all-closed', (e) => {
 
 app.on('will-quit', () => {
   globalShortcut.unregisterAll();
+  for (const ptyProc of ptyProcesses.values()) {
+    try { ptyProc.kill(); } catch {}
+  }
 });
