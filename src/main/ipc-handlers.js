@@ -92,9 +92,20 @@ function register(ipcMain, { procMgr, ptyMgr, win, cfgIo, globalShortcut, dialog
     }
   });
 
-  ipcMain.handle('open-log', (_, { logFile }) => { shell.openPath(logFile); return true; });
+  ipcMain.handle('open-log', (_, { logFile }) => {
+    if (typeof logFile !== 'string') return false;
+    const resolved = path.resolve(logFile);
+    if (!resolved.startsWith(LOG_DIR + path.sep)) return false;
+    shell.openPath(resolved);
+    return true;
+  });
   ipcMain.handle('open-log-dir', () => { shell.openPath(LOG_DIR); return true; });
-  ipcMain.handle('open-external', (_, url) => shell.openExternal(url));
+  ipcMain.handle('open-external', (_, url) => {
+    let parsed;
+    try { parsed = new URL(url); } catch { return { ok: false }; }
+    if (!['https:', 'http:'].includes(parsed.protocol)) return { ok: false };
+    return shell.openExternal(url);
+  });
 
   ipcMain.handle('pty-create', (_, { commandId }) => ptyMgr.ptyCreate(commandId));
   ipcMain.handle('pty-write',  (_, { commandId, data }) => ptyMgr.ptyWrite(commandId, data));
