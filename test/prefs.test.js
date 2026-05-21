@@ -78,6 +78,7 @@ test('sanitizePrefs: defaults non-integer drawerHeight to 240', () => {
   assert.equal(sanitizePrefs({ drawerHeight: 'big' }).drawerHeight, 240);
   assert.equal(sanitizePrefs({ drawerHeight: -10 }).drawerHeight, 240);
   assert.equal(sanitizePrefs({ drawerHeight: 0 }).drawerHeight, 240);
+  assert.equal(sanitizePrefs({ drawerHeight: 9999 }).drawerHeight, 240);
 });
 
 test('sanitizePrefs: coerces notify fields to booleans', () => {
@@ -89,4 +90,12 @@ test('sanitizePrefs: coerces notify fields to booleans', () => {
 test('sanitizePrefs: ignores unknown top-level keys', () => {
   const result = sanitizePrefs({ hotkey: 'Super+D', evil: 'payload' });
   assert.equal(result.evil, undefined);
+});
+
+test('sanitizePrefs: returns DEFAULTS for null or non-object input', () => {
+  const result = sanitizePrefs(null);
+  assert.equal(result.theme, 'system');
+  assert.equal(result.drawerHeight, 240);
+  assert.equal(result.notify.onCrash, DEFAULTS.notify.onCrash);
+  assert.equal(result.notify.onUnexpectedExit, DEFAULTS.notify.onUnexpectedExit);
 });

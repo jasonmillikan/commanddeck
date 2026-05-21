@@ -31,13 +31,13 @@ function savePrefs(prefsPath, data) {
 
 function sanitizePrefs(data) {
   if (!data || typeof data !== 'object' || Array.isArray(data)) {
-    return { hotkey: '', theme: 'system', drawerHeight: 240, notify: { onCrash: false, onUnexpectedExit: false } };
+    return { ...DEFAULTS, notify: { ...DEFAULTS.notify } };
   }
   const { hotkey, theme, drawerHeight, notify } = data;
   return {
     hotkey: typeof hotkey === 'string' ? hotkey.slice(0, 100) : '',
     theme: ['system', 'light', 'dark'].includes(theme) ? theme : 'system',
-    drawerHeight: Number.isInteger(drawerHeight) && drawerHeight > 0 ? drawerHeight : 240,
+    drawerHeight: Number.isInteger(drawerHeight) && drawerHeight > 0 && drawerHeight <= 2000 ? drawerHeight : 240,
     notify: {
       onCrash: Boolean(notify?.onCrash),
       onUnexpectedExit: Boolean(notify?.onUnexpectedExit),
