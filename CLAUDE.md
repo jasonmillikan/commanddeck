@@ -43,8 +43,9 @@ commanddeck/
     │   ├── process-manager.js  ← spawnCommand, kill, toggle state, liveProcesses Map
     │   ├── pty-manager.js      ← ptyCreate, ptyWrite, ptyResize, killAllPty
     │   ├── ipc-handlers.js     ← all ipcMain.handle() registrations (wiring only)
+    │   ├── validate-config.js  ← validateConfig() — pure schema validator for commands.json data
     │   ├── tray-icon.js        ← stateful tray icon renderer (SVG, no static assets)
-    │   ├── prefs.js            ← loadPrefs, savePrefs, DEFAULTS
+    │   ├── prefs.js            ← loadPrefs, savePrefs, sanitizePrefs, DEFAULTS
     │   └── state.js            ← loadState, saveState (toggle persistence)
     └── renderer/               ← Electron renderer process (ES modules)
         ├── index.html          ← app shell, modal markup, drawer markup
@@ -129,7 +130,7 @@ All calls go through `window.api.*`:
 | `loadConfig()` | Returns parsed `commands.json` |
 | `saveConfig(data)` | Writes `commands.json` |
 | `getLiveProcesses()` | Returns `{ commandId: [{ pid, startedAt, logFile }] }` |
-| `runCommand({ commandId, label, cmdString, type })` | Spawns or execs. Returns `{ ok, pid?, startedAt?, logFile? }` |
+| `runCommand({ commandId, type })` | Spawns or execs. `cmdString` is looked up from saved config by main process — renderer value is ignored. Returns `{ ok, pid?, startedAt?, logFile? }` |
 | `killProcess(pid)` | SIGTERM to pid |
 | `openLog(logFile)` | `shell.openPath` the log file |
 | `openLogDir()` | Opens `~/.commanddeck/logs/` |
@@ -198,3 +199,4 @@ These were identified at the end of the prototype session — good starting poin
 - **SortableJS instance** — `sortableInstance` in `cards.js` must be destroyed before every `renderCards()` call (innerHTML replacement detaches old DOM nodes). The empty-state path also destroys it. Do not call `Sortable.create()` without first calling `sortableInstance.destroy()`.
 - **Drag reorder selector** — `handleDragEnd` uses `.card[data-id]` (not bare `[data-id]`) to read card order from the DOM. Card action buttons also carry `data-id`; the class scope prevents them being picked up as card roots.
 - **Theming system** — theme is driven by a `data-theme` attribute on `<html>` (`"dark"` or `"light"`). `style.css` defines the dark default in `:root`; `theme-light.css` overrides variables under `[data-theme="light"]`. `initTheme(pref)` in `app.js` resolves the pref (`"system"` | `"light"` | `"dark"`), sets the attribute, and manages a `matchMedia` OS-change listener. The xterm.js terminal follows via `setXtermTheme(mode)` in `terminal.js`, which updates `term.options.theme` on all open terminals. Theme preference is stored as `prefs.theme` in `~/.commanddeck/prefs.json`. Tray icon is intentionally excluded — it lives in the OS tray, not the app window.
+- **Security hardening (2026-05-21)** — A pre-publication security audit was completed and all findings fixed. Key invariants: (1) `run-command` handler ignores renderer-supplied `cmdString` and `label` — looks up both from saved config by `commandId`; (2) `kill-process` validates PID is a positive integer AND tracked in `liveProcesses` before signaling; (3) `open-external` only allows `https:` and `http:` protocols; (4) `open-log` confines paths to `LOG_DIR`; (5) `save-config`/`import-config` run `validateConfig()` before writing — rejects unknown IDs, types, or oversized fields; (6) `save-prefs` runs `sanitizePrefs()` — strips unknown keys and coerces types; (7) `pty-create` validates `commandId` is a known cheatsheet; (8) `will-navigate` blocks external navigation; CSP blocks inline scripts. See `src/main/validate-config.js` for the config schema.
