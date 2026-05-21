@@ -82,6 +82,6 @@ export function getActiveTerminalId() {
 
 export function setXtermTheme(mode) {
   for (const entry of terminalMap.values()) {
-    if (entry) entry.term.options.theme = XTERM_THEMES[mode];
+    if (entry) entry.term.options.theme = XTERM_THEMES[mode] || XTERM_THEMES.dark;
   }
 }
