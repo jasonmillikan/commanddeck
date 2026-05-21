@@ -132,6 +132,16 @@ Open **Preferences** (⚙ in the titlebar) and enable **Launch at login**. Comma
 
 ---
 
+## Support
+
+If CommandDeck saves you time or friction, a small sponsorship would be deeply appreciated.
+GitHub Sponsors is the easiest way to help — Ko-fi works too if you prefer.
+
+- **[GitHub Sponsors](https://github.com/sponsors/YOUR_GITHUB_USERNAME)** — recurring or one-time, directly on GitHub
+- **[Ko-fi](https://ko-fi.com/YOUR_KOFI_USERNAME)** — buy me a coffee, no account needed
+
+---
+
 ## License
 
 MIT — do whatever you want with it.
