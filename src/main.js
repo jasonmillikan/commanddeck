@@ -3,7 +3,7 @@ const { spawn, exec } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
-const pty = require('node-pty-prebuilt-multiarch');
+const pty = require('node-pty');
 
 const { buildTrayIcon, buildAppIcon } = require('./tray-icon');
 const { loadState, saveState } = require('./state');

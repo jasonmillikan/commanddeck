@@ -7,7 +7,7 @@
     "start": "electron .",
     "dev": "electron . --dev",
     "test": "node --test test/*.test.js",
-    "postinstall": "electron-rebuild"
+    "postinstall": "patch-package && electron-rebuild"
   },
   "keywords": [
     "electron",
@@ -20,10 +20,11 @@
   "license": "MIT",
   "devDependencies": {
     "electron": "^42.0.0",
-    "electron-rebuild": "^3.2.9"
+    "electron-rebuild": "^3.2.9",
+    "patch-package": "^8.0.1"
   },
   "dependencies": {
-    "node-pty-prebuilt-multiarch": "^0.10.1-pre.5",
+    "node-pty": "^1.1.0",
     "sortablejs": "^1.15.7",
     "xterm": "^4.19.0",
     "xterm-addon-fit": "^0.5.0"
