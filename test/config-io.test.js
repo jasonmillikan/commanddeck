@@ -4,7 +4,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const { loadConfig, saveConfig, ensureConfigDir } = require('../src/config-io');
+const { loadConfig, saveConfig, ensureConfigDir } = require('../src/main/config-io');
 
 test('loadConfig: returns empty commands when file missing', () => {
   const result = loadConfig(path.join(os.tmpdir(), 'nonexistent-' + Date.now() + '.json'));

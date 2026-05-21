@@ -4,7 +4,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const procMgr = require('../src/process-manager');
+const procMgr = require('../src/main/process-manager');
 
 before(() => {
   procMgr.init({

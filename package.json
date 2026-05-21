@@ -2,7 +2,7 @@
   "name": "commanddeck",
   "version": "0.1.0",
   "description": "A toggle board for terminal commands",
-  "main": "src/main.js",
+  "main": "src/main/main.js",
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",

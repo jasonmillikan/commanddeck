@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { loadState, saveState } = require('../src/state');
+const { loadState, saveState } = require('../src/main/state');
 
 function tmpPath() {
   return path.join(os.tmpdir(), `state-test-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);

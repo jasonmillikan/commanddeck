@@ -15,7 +15,7 @@ app.whenReady().then(() => {
   const prefs = loadPrefs(cfgIo.PREFS_PATH);
 
   const preloadPath  = path.join(__dirname, 'preload.js');
-  const rendererPath = path.join(__dirname, 'renderer', 'index.html');
+  const rendererPath = path.join(__dirname, '..', 'renderer', 'index.html');
 
   win.createWindow(preloadPath, rendererPath, {
     onShow: () => {
