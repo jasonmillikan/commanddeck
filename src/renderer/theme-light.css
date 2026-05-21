@@ -1,0 +1,15 @@
+/* ── Light Theme (Paper) ───────────────────────────────────────────────────── */
+[data-theme="light"] {
+  --bg:        #fafaf7;
+  --bg2:       #f2f2ec;
+  --bg3:       #e8e8e0;
+  --border:    #d0d0c4;
+  --border2:   #a8a898;
+  --accent:    #15803d;
+  --accent2:   #0369a1;
+  --danger:    #dc2626;
+  --warn:      #b45309;
+  --text:      #1a1a14;
+  --text-dim:  #6b7280;
+  --text-mid:  #4b5563;
+}

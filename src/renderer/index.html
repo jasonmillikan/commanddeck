@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CommandDeck</title>
   <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="theme-light.css" />
   <link rel="stylesheet" href="../../node_modules/xterm/css/xterm.css" />
 </head>
 <body>
@@ -122,6 +123,21 @@
         <button class="modal-close" id="prefs-close">×</button>
       </div>
       <div class="modal-body">
+        <div class="prefs-section-label">APPEARANCE</div>
+        <div class="radio-group">
+          <label class="radio-label">
+            <input type="radio" name="p-theme" value="system" />
+            System
+          </label>
+          <label class="radio-label">
+            <input type="radio" name="p-theme" value="light" />
+            Light
+          </label>
+          <label class="radio-label">
+            <input type="radio" name="p-theme" value="dark" />
+            Dark
+          </label>
+        </div>
         <label>Global Hotkey
           <div class="hotkey-row">
             <input type="text" id="p-hotkey" readonly placeholder="None" />
