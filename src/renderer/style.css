@@ -724,6 +724,27 @@ body { font-family: var(--font-ui); font-size: 14px; display: flex; flex-directi
 
 #f-content { resize: vertical; min-height: 120px; line-height: 1.5; }
 
+.prefs-sponsor {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 20px;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  flex-wrap: wrap;
+}
+.prefs-sponsor-heart { color: var(--danger); }
+.prefs-sponsor a {
+  color: var(--accent);
+  text-decoration: none;
+  cursor: pointer;
+}
+.prefs-sponsor a:hover { text-decoration: underline; }
+
 /* ── In-app terminal ───────────────────────────────────────────────────────── */
 #drawer-snippet-panel {
   max-height: 120px;

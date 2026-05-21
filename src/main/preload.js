@@ -32,6 +32,7 @@ contextBridge.exposeInMainWorld('api', {
 
   // System terminal
   openInTerminal: (content, cmdId) => ipcRenderer.invoke('open-in-terminal', { content, cmdId }),
+  openExternal: (url) => ipcRenderer.invoke('open-external', url),
 
   // PTY (in-app terminal)
   ptyCreate:  (commandId) => ipcRenderer.invoke('pty-create', { commandId }),
