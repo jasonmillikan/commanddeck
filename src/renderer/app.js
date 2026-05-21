@@ -101,7 +101,7 @@ function renderCard(cmd) {
     return `
       <div class="card" data-id="${cmd.id}">
         <div class="card-drag-handle">⠿</div>
-        <div class="card-body" data-action="view" data-id="${cmd.id}">
+        <div class="card-body" data-action="term" data-id="${cmd.id}">
           <div class="card-header">
             <div class="card-info">
               <div class="card-label">${escHtml(cmd.label)}</div>
@@ -111,8 +111,9 @@ function renderCard(cmd) {
           </div>
           <div class="card-cmd" title="${escHtml(cmd.content || '')}">${escHtml(previewLine)}</div>
           <div class="card-actions">
-            <button class="card-btn card-btn-view"   data-action="view"   data-id="${cmd.id}">VIEW</button>
-            <button class="card-btn card-btn-edit"   data-action="edit"   data-id="${cmd.id}">EDIT</button>
+            <button class="card-btn card-btn-open" data-action="open" data-id="${cmd.id}">OPEN</button>
+            <button class="card-btn card-btn-term" data-action="term" data-id="${cmd.id}">TERM</button>
+            <button class="card-btn card-btn-edit" data-action="edit" data-id="${cmd.id}">EDIT</button>
           </div>
         </div>
       </div>
@@ -349,8 +350,15 @@ async function handleCardAction(action, id, checked) {
       liveMap[id] = [];
       renderAll();
     }
-  } else if (action === 'log' || action === 'view') {
-    openDrawer(cmd);
+  } else if (action === 'log') {
+    openDrawer(cmd, 'output');
+  } else if (action === 'term') {
+    openDrawer(cmd, 'term');
+  } else if (action === 'open') {
+    const result = await window.api.openInTerminal(cmd.content, cmd.id);
+    if (result && !result.ok && result.reason === 'no_terminal') {
+      new Notification('No terminal found', { body: 'Set the $TERMINAL environment variable to your terminal emulator.' });
+    }
   } else if (action === 'edit') {
     openModal(cmd);
   }
