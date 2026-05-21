@@ -79,6 +79,16 @@ function saveConfig(data) {
   fs.writeFileSync(CONFIG_PATH, JSON.stringify(data, null, 2));
 }
 
+function detectTerminalApp() {
+  if (process.env.TERMINAL) return process.env.TERMINAL;
+  const dirs = (process.env.PATH || '').split(':');
+  const candidates = ['kitty', 'alacritty', 'gnome-terminal', 'xfce4-terminal', 'konsole', 'xterm'];
+  for (const t of candidates) {
+    if (dirs.some(d => fs.existsSync(path.join(d, t)))) return t;
+  }
+  return null;
+}
+
 // ─── Live process registry (in-memory, not persisted) ────────────────────────
 // pid → { pid, commandId, startedAt, logFile, process? }
 const liveProcesses = new Map();
@@ -429,6 +439,28 @@ ipcMain.handle('pty-write', (_, { commandId, data }) => {
 ipcMain.handle('pty-resize', (_, { commandId, cols, rows }) => {
   if (!Number.isInteger(cols) || cols < 1 || !Number.isInteger(rows) || rows < 1) return { ok: false };
   ptyProcesses.get(commandId)?.resize(cols, rows);
+  return { ok: true };
+});
+
+ipcMain.handle('open-in-terminal', async (_, { content, cmdId }) => {
+  const tmpFile = path.join(os.tmpdir(), `commanddeck-${cmdId}.sh`);
+  fs.writeFileSync(tmpFile, content, { mode: 0o644 });
+  setTimeout(() => { try { fs.unlinkSync(tmpFile); } catch {} }, 30000);
+
+  if (process.platform === 'darwin') {
+    const script = `tell application "Terminal" to do script "cat '${tmpFile}'; exec $SHELL"`;
+    spawn('osascript', ['-e', script], { detached: true, stdio: 'ignore' }).unref();
+    return { ok: true };
+  }
+
+  if (process.platform === 'win32') {
+    spawn('cmd', ['/K', `type "${tmpFile}"`], { detached: true, stdio: 'ignore' }).unref();
+    return { ok: true };
+  }
+
+  const terminal = detectTerminalApp();
+  if (!terminal) return { ok: false, reason: 'no_terminal' };
+  spawn(terminal, ['--', 'bash', '-c', `cat "${tmpFile}"; exec $SHELL`], { detached: true, stdio: 'ignore' }).unref();
   return { ok: true };
 });
 

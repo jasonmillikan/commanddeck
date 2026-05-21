@@ -30,6 +30,9 @@ contextBridge.exposeInMainWorld('api', {
   getAutostart: () => ipcRenderer.invoke('get-autostart'),
   setAutostart: (enabled) => ipcRenderer.invoke('set-autostart', enabled),
 
+  // System terminal
+  openInTerminal: (content, cmdId) => ipcRenderer.invoke('open-in-terminal', { content, cmdId }),
+
   // PTY (in-app terminal)
   ptyCreate:  (commandId) => ipcRenderer.invoke('pty-create', { commandId }),
   ptyWrite:   (commandId, data) => ipcRenderer.invoke('pty-write', { commandId, data }),
