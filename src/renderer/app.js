@@ -836,6 +836,14 @@ loadAll();
       const newHeight = parseInt(drawer.style.height, 10);
       prefs = { ...prefs, drawerHeight: newHeight };
       window.api.savePrefs(prefs);
+      if (activeTerminalId) {
+        const entry = terminalMap.get(activeTerminalId);
+        if (entry) {
+          entry.fitAddon.fit();
+          const { cols, rows } = entry.term;
+          window.api.ptyResize(activeTerminalId, cols, rows);
+        }
+      }
     }
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
