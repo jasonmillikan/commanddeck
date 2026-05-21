@@ -82,9 +82,10 @@ function saveConfig(data) {
 function detectTerminalApp() {
   // PATH uses ':' as separator — this function is Linux-only (macOS/Windows callers return early)
   const dirs = (process.env.PATH || '').split(':');
+  // xterm excluded: it uses -e rather than -- for command execution
   const candidates = process.env.TERMINAL
-    ? [process.env.TERMINAL, 'kitty', 'alacritty', 'gnome-terminal', 'xfce4-terminal', 'konsole', 'xterm']
-    : ['kitty', 'alacritty', 'gnome-terminal', 'xfce4-terminal', 'konsole', 'xterm'];
+    ? [process.env.TERMINAL, 'kitty', 'alacritty', 'gnome-terminal', 'xfce4-terminal', 'konsole']
+    : ['kitty', 'alacritty', 'gnome-terminal', 'xfce4-terminal', 'konsole'];
   for (const t of candidates) {
     if (dirs.some(d => fs.existsSync(path.join(d, t)))) return t;
   }

@@ -814,6 +814,9 @@ window.api.onProcessOutput(({ commandId, pid, text }) => {
 window.api.onPtyData(({ commandId, data }) => {
   terminalMap.get(commandId)?.term.write(data);
 });
+window.api.onPtyExit(({ commandId }) => {
+  terminalMap.delete(commandId);
+});
 
 loadAll();
 
