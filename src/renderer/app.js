@@ -2,7 +2,7 @@ import { migrateCommands, applyReorder } from './utils.js';
 import { renderCards, renderStats } from './cards.js';
 import { openModal, initModal } from './modal.js';
 import { openDrawer, initDrawer, getDrawerCommandId } from './drawer.js';
-import { initTerminal, getTerminalEntry, deleteTerminalEntry, getActiveTerminalId } from './terminal.js';
+import { initTerminal, getTerminalEntry, deleteTerminalEntry, getActiveTerminalId, setXtermTheme } from './terminal.js';
 import { openPrefsModal, initPrefsModal } from './prefs-modal.js';
 
 // ─── State ────────────────────────────────────────────────────────────────────
@@ -18,6 +18,33 @@ let prefs = { hotkey: '', notify: { onCrash: true, onUnexpectedExit: false } };
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function getFirstPid(id) { return (liveMap[id] || [])[0]?.pid; }
 
+// ─── Theme ────────────────────────────────────────────────────────────────────
+let osThemeListener = null;
+
+function setTheme(mode) {
+  document.documentElement.setAttribute('data-theme', mode);
+  setXtermTheme(mode);
+}
+
+function resolveTheme(pref) {
+  if (pref === 'light') return 'light';
+  if (pref === 'dark') return 'dark';
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+function initTheme(pref) {
+  const mq = window.matchMedia('(prefers-color-scheme: dark)');
+  if (osThemeListener) {
+    mq.removeEventListener('change', osThemeListener);
+    osThemeListener = null;
+  }
+  setTheme(resolveTheme(pref));
+  if (pref === 'system') {
+    osThemeListener = (e) => setTheme(e.matches ? 'dark' : 'light');
+    mq.addEventListener('change', osThemeListener);
+  }
+}
+
 // ─── Config persistence ───────────────────────────────────────────────────────
 async function loadAll() {
   const raw = await window.api.loadConfig();
@@ -27,6 +54,7 @@ async function loadAll() {
   liveMap = await window.api.getLiveProcesses();
   prefs = await window.api.loadPrefs();
   document.getElementById('output-drawer').style.height = (prefs.drawerHeight || 240) + 'px';
+  initTheme(prefs.theme || 'system');
   renderAll();
 }
 
@@ -273,6 +301,6 @@ document.getElementById('btn-import').addEventListener('click', async () => {
 // ─── Init ─────────────────────────────────────────────────────────────────────
 initModal({ getConfig: () => config, persist, renderAll });
 initDrawer({ getConfig: () => config, getOutputMap: () => outputMap, getLiveMap: () => liveMap });
-initPrefsModal({ getPrefs: () => prefs, setPrefs: (p) => { prefs = p; } });
+initPrefsModal({ getPrefs: () => prefs, setPrefs: (p) => { prefs = p; }, applyTheme: initTheme });
 
 loadAll();
