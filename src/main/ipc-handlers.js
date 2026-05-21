@@ -43,7 +43,13 @@ function register(ipcMain, { procMgr, ptyMgr, win, cfgIo, globalShortcut, dialog
 
   ipcMain.handle('get-live-processes', () => procMgr.getLiveProcesses());
 
-  ipcMain.handle('run-command', async (_, { commandId, label, cmdString, type }) => {
+  ipcMain.handle('run-command', async (_, { commandId, label, type }) => {
+    const cfg = cfgIo.loadConfig();
+    const cmd = (cfg.commands || []).find(c => c.id === commandId);
+    if (!cmd) return { ok: false, error: 'unknown_command' };
+    const cmdString = type === 'toggle-off' ? cmd.offCmd : (cmd.onCmd || cmd.launchCmd);
+    if (!cmdString) return { ok: false, error: 'no_cmd_for_type' };
+
     if (type === 'toggle-on' || type === 'launcher' || type === 'foreground') {
       const result = procMgr.spawnCommand(commandId, label, cmdString, type);
       win.updateTrayIcon({
@@ -66,7 +72,7 @@ function register(ipcMain, { procMgr, ptyMgr, win, cfgIo, globalShortcut, dialog
       }
       return { ok: result.ok, logFile };
     }
-    return { ok: false, error: 'Unknown type' };
+    return { ok: false, error: 'unknown_type' };
   });
 
   ipcMain.handle('kill-process', (_, { pid }) => {
