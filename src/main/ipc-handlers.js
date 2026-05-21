@@ -2,6 +2,7 @@ const path = require('path');
 const fs   = require('fs');
 const os   = require('os');
 const { validateConfig } = require('./validate-config');
+const activeTempFiles = new Set();
 
 function register(ipcMain, { procMgr, ptyMgr, win, cfgIo, globalShortcut, dialog, shell }) {
   const { CONFIG_PATH, LOG_DIR, AUTOSTART_PATH, loadConfig, saveConfig, autostartDesktopContent, detectTerminalApp } = cfgIo;
@@ -129,7 +130,11 @@ function register(ipcMain, { procMgr, ptyMgr, win, cfgIo, globalShortcut, dialog
     const safeCmdId = cmdId.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64);
     const tmpFile = path.join(os.tmpdir(), `commanddeck-${safeCmdId}-${Date.now()}.sh`);
     fs.writeFileSync(tmpFile, content, { mode: 0o600 });
-    setTimeout(() => { try { fs.unlinkSync(tmpFile); } catch {} }, 30000);
+    activeTempFiles.add(tmpFile);
+    setTimeout(() => {
+      try { fs.unlinkSync(tmpFile); } catch {}
+      activeTempFiles.delete(tmpFile);
+    }, 30000);
 
     if (process.platform === 'darwin') {
       const script = `tell application "Terminal" to do script "cat '${tmpFile}'; exec $SHELL"`;
@@ -202,4 +207,11 @@ function register(ipcMain, { procMgr, ptyMgr, win, cfgIo, globalShortcut, dialog
   });
 }
 
-module.exports = { register };
+function cleanupTempFiles() {
+  for (const f of activeTempFiles) {
+    try { fs.unlinkSync(f); } catch {}
+  }
+  activeTempFiles.clear();
+}
+
+module.exports = { register, cleanupTempFiles };
