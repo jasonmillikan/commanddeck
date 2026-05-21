@@ -427,6 +427,7 @@ async function initTerminal(cmd) {
   term.loadAddon(fitAddon);
   term.open(container);
   term.onData(data => window.api.ptyWrite(cmd.id, data));
+  terminalMap.set(cmd.id, { term, fitAddon, ready: false, pendingWrites: [] });
   try {
     await window.api.ptyCreate(cmd.id);
   } catch (err) {
@@ -434,7 +435,6 @@ async function initTerminal(cmd) {
     container.remove();
     throw err;
   }
-  terminalMap.set(cmd.id, { term, fitAddon });
 }
 
 function switchToTerminal(cmdId) {
@@ -475,7 +475,12 @@ function openDrawer(cmd, mode = 'output') {
     snippetPanel.onclick = (e) => {
       const lineEl = e.target.closest('.snippet-line');
       if (!lineEl) return;
-      window.api.ptyWrite(cmd.id, lineEl.dataset.cmd);
+      const entry = terminalMap.get(cmd.id);
+      if (entry?.ready) {
+        window.api.ptyWrite(cmd.id, lineEl.dataset.cmd);
+      } else if (entry) {
+        entry.pendingWrites.push(lineEl.dataset.cmd);
+      }
     };
 
     initTerminal(cmd).then(() => switchToTerminal(cmd.id));
@@ -812,7 +817,13 @@ window.api.onProcessOutput(({ commandId, pid, text }) => {
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 window.api.onPtyData(({ commandId, data }) => {
-  terminalMap.get(commandId)?.term.write(data);
+  const entry = terminalMap.get(commandId);
+  if (!entry) return;
+  entry.term.write(data);
+  if (!entry.ready) {
+    entry.ready = true;
+    entry.pendingWrites.splice(0).forEach(d => window.api.ptyWrite(commandId, d));
+  }
 });
 window.api.onPtyExit(({ commandId }) => {
   terminalMap.delete(commandId);
