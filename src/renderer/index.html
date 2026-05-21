@@ -123,6 +123,14 @@
         <button class="modal-close" id="prefs-close">×</button>
       </div>
       <div class="modal-body">
+        <label>Global Hotkey
+          <div class="hotkey-row">
+            <input type="text" id="p-hotkey" readonly placeholder="None" />
+            <button class="btn-secondary" id="p-hotkey-record">Record</button>
+            <button class="btn-secondary" id="p-hotkey-clear">×</button>
+          </div>
+          <span class="field-error" id="p-hotkey-error"></span>
+        </label>
         <div class="prefs-section-label">APPEARANCE</div>
         <div class="radio-group">
           <label class="radio-label">
@@ -138,14 +146,6 @@
             Dark
           </label>
         </div>
-        <label>Global Hotkey
-          <div class="hotkey-row">
-            <input type="text" id="p-hotkey" readonly placeholder="None" />
-            <button class="btn-secondary" id="p-hotkey-record">Record</button>
-            <button class="btn-secondary" id="p-hotkey-clear">×</button>
-          </div>
-          <span class="field-error" id="p-hotkey-error"></span>
-        </label>
         <div class="prefs-section-label">STARTUP</div>
         <label class="checkbox-label">
           <input type="checkbox" id="p-autostart" />

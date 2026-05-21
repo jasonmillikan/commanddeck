@@ -718,8 +718,18 @@ body { font-family: var(--font-ui); font-size: 14px; display: flex; flex-directi
   font-weight: 700;
   letter-spacing: 0.12em;
   color: var(--text-dim);
-  padding-top: 4px;
+  margin-top: 6px;
+  padding-top: 12px;
+  padding-bottom: 2px;
   border-top: 1px solid var(--border);
+}
+.modal-body .checkbox-label {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: normal;
 }
 
 #f-content { resize: vertical; min-height: 120px; line-height: 1.5; }
@@ -728,7 +738,7 @@ body { font-family: var(--font-ui); font-size: 14px; display: flex; flex-directi
   display: flex;
   align-items: center;
   gap: 5px;
-  padding: 8px 20px;
+  padding: 14px 24px;
   background: var(--bg);
   border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
