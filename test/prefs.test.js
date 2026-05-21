@@ -44,3 +44,16 @@ test('loadPrefs falls back to default notify when notify field is not an object'
   assert.deepEqual(result.notify, DEFAULTS.notify);
   fs.unlinkSync(tmp);
 });
+
+test('loadPrefs returns default theme of "system"', () => {
+  const result = loadPrefs('/nonexistent/path/prefs.json');
+  assert.equal(result.theme, 'system');
+});
+
+test('loadPrefs merges theme from saved data', () => {
+  const tmp = path.join(os.tmpdir(), `prefs-test-${Date.now()}.json`);
+  fs.writeFileSync(tmp, JSON.stringify({ theme: 'light' }));
+  const result = loadPrefs(tmp);
+  assert.equal(result.theme, 'light');
+  fs.unlinkSync(tmp);
+});

@@ -3,6 +3,7 @@ const fs = require('fs');
 const DEFAULTS = {
   hotkey: 'Super+D',
   drawerHeight: 240,
+  theme: 'system',
   notify: {
     onCrash: true,
     onUnexpectedExit: false,
