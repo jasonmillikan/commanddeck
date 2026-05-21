@@ -111,7 +111,6 @@ function renderCard(cmd) {
           <div class="card-actions">
             <button class="card-btn card-btn-view"   data-action="view"   data-id="${cmd.id}">VIEW</button>
             <button class="card-btn card-btn-edit"   data-action="edit"   data-id="${cmd.id}">EDIT</button>
-            <button class="card-btn card-btn-delete" data-action="delete" data-id="${cmd.id}">DEL</button>
           </div>
         </div>
       </div>
@@ -146,20 +145,17 @@ function renderCard(cmd) {
     actionsHtml = `
       <button class="card-btn card-btn-log"    data-action="log"    data-id="${cmd.id}">LOG</button>
       <button class="card-btn card-btn-edit"   data-action="edit"   data-id="${cmd.id}">EDIT</button>
-      <button class="card-btn card-btn-delete" data-action="delete" data-id="${cmd.id}">DEL</button>
     `;
   } else if (cmd.type === 'launcher') {
     actionsHtml = `
       <button class="card-btn card-btn-log"    data-action="log"    data-id="${cmd.id}">LOG</button>
       <button class="card-btn card-btn-edit"   data-action="edit"   data-id="${cmd.id}">EDIT</button>
-      <button class="card-btn card-btn-delete" data-action="delete" data-id="${cmd.id}">DEL</button>
     `;
   } else { // foreground
     actionsHtml = `
       ${running ? `<button class="card-btn card-btn-kill" data-action="kill" data-id="${cmd.id}">KILL</button>` : ''}
       <button class="card-btn card-btn-log"    data-action="log"    data-id="${cmd.id}">LOG</button>
       <button class="card-btn card-btn-edit"   data-action="edit"   data-id="${cmd.id}">EDIT</button>
-      <button class="card-btn card-btn-delete" data-action="delete" data-id="${cmd.id}">DEL</button>
     `;
   }
 
@@ -355,12 +351,6 @@ async function handleCardAction(action, id, checked) {
     openDrawer(cmd);
   } else if (action === 'edit') {
     openModal(cmd);
-  } else if (action === 'delete') {
-    if (confirm(`Delete "${cmd.label}"?`)) {
-      config.commands = config.commands.filter(c => c.id !== id);
-      await persist();
-      renderAll();
-    }
   }
 }
 
@@ -475,6 +465,7 @@ function openModal(cmd = null) {
   renderTagChips();
   document.getElementById('f-tags-input').value = '';
   updateModalFields();
+  document.getElementById('modal-delete').style.display = editingId ? '' : 'none';
   document.getElementById('modal-backdrop').classList.add('open');
   document.getElementById('f-label').focus();
 }
@@ -517,11 +508,22 @@ document.getElementById('f-type').addEventListener('change', updateModalFields);
 
 function closeModal() {
   document.getElementById('modal-backdrop').classList.remove('open');
+  document.getElementById('modal-delete').style.display = 'none';
   editingId = null;
 }
 
 document.getElementById('modal-close').addEventListener('click', closeModal);
 document.getElementById('modal-cancel').addEventListener('click', closeModal);
+document.getElementById('modal-delete').addEventListener('click', async () => {
+  const cmd = config.commands.find(c => c.id === editingId);
+  if (!cmd) return;
+  if (confirm(`Delete "${cmd.label}"?`)) {
+    config.commands = config.commands.filter(c => c.id !== editingId);
+    await persist();
+    closeModal();
+    renderAll();
+  }
+});
 document.getElementById('modal-backdrop').addEventListener('click', e => {
   if (e.target === e.currentTarget) closeModal();
 });
