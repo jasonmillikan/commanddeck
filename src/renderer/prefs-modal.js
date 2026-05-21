@@ -106,3 +106,7 @@ document.getElementById('prefs-save').addEventListener('click', async () => {
   _applyTheme(theme);
   closePrefsModal();
 });
+document.getElementById('prefs-sponsor-link').addEventListener('click', (e) => {
+  e.preventDefault();
+  window.api.openExternal('https://github.com/sponsors/YOUR_GITHUB_USERNAME');
+});
