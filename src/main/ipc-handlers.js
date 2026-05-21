@@ -100,11 +100,12 @@ function register(ipcMain, { procMgr, ptyMgr, win, cfgIo, globalShortcut, dialog
     return true;
   });
   ipcMain.handle('open-log-dir', () => { shell.openPath(LOG_DIR); return true; });
-  ipcMain.handle('open-external', (_, url) => {
+  ipcMain.handle('open-external', async (_, url) => {
     let parsed;
     try { parsed = new URL(url); } catch { return { ok: false }; }
     if (!['https:', 'http:'].includes(parsed.protocol)) return { ok: false };
-    return shell.openExternal(url);
+    await shell.openExternal(parsed.href);
+    return { ok: true };
   });
 
   ipcMain.handle('pty-create', (_, { commandId }) => ptyMgr.ptyCreate(commandId));
