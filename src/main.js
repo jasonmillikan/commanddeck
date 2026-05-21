@@ -80,9 +80,11 @@ function saveConfig(data) {
 }
 
 function detectTerminalApp() {
-  if (process.env.TERMINAL) return process.env.TERMINAL;
+  // PATH uses ':' as separator — this function is Linux-only (macOS/Windows callers return early)
   const dirs = (process.env.PATH || '').split(':');
-  const candidates = ['kitty', 'alacritty', 'gnome-terminal', 'xfce4-terminal', 'konsole', 'xterm'];
+  const candidates = process.env.TERMINAL
+    ? [process.env.TERMINAL, 'kitty', 'alacritty', 'gnome-terminal', 'xfce4-terminal', 'konsole', 'xterm']
+    : ['kitty', 'alacritty', 'gnome-terminal', 'xfce4-terminal', 'konsole', 'xterm'];
   for (const t of candidates) {
     if (dirs.some(d => fs.existsSync(path.join(d, t)))) return t;
   }
@@ -443,8 +445,10 @@ ipcMain.handle('pty-resize', (_, { commandId, cols, rows }) => {
 });
 
 ipcMain.handle('open-in-terminal', async (_, { content, cmdId }) => {
-  const tmpFile = path.join(os.tmpdir(), `commanddeck-${cmdId}.sh`);
-  fs.writeFileSync(tmpFile, content, { mode: 0o644 });
+  if (typeof content !== 'string' || typeof cmdId !== 'string') return { ok: false, reason: 'invalid_args' };
+  const safeCmdId = cmdId.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64);
+  const tmpFile = path.join(os.tmpdir(), `commanddeck-${safeCmdId}-${Date.now()}.sh`);
+  fs.writeFileSync(tmpFile, content, { mode: 0o600 });
   setTimeout(() => { try { fs.unlinkSync(tmpFile); } catch {} }, 30000);
 
   if (process.platform === 'darwin') {
@@ -460,7 +464,8 @@ ipcMain.handle('open-in-terminal', async (_, { content, cmdId }) => {
 
   const terminal = detectTerminalApp();
   if (!terminal) return { ok: false, reason: 'no_terminal' };
-  spawn(terminal, ['--', 'bash', '-c', `cat "${tmpFile}"; exec $SHELL`], { detached: true, stdio: 'ignore' }).unref();
+  // Pass tmpFile as $1 to avoid shell interpolation
+  spawn(terminal, ['--', 'bash', '-c', 'cat "$1"; exec $SHELL', '--', tmpFile], { detached: true, stdio: 'ignore' }).unref();
   return { ok: true };
 });
 
