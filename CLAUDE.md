@@ -48,21 +48,24 @@ commanddeck/
     │   └── state.js            ← loadState, saveState (toggle persistence)
     └── renderer/               ← Electron renderer process (ES modules)
         ├── index.html          ← app shell, modal markup, drawer markup
-        ├── style.css           ← full styling (CSS variables, dark theme)
+        ├── style.css           ← full styling (CSS variables, dark theme default)
+        ├── theme-light.css     ← light theme overrides ([data-theme="light"] variable block only)
         ├── app.js              ← entry point: state, boot, card events, IPC wiring (~280 lines)
         ├── utils.js            ← uid, formatTime, escHtml, badgeFor, migrateCommands, applyReorder, keyEventToAccelerator
         ├── cards.js            ← renderCard, renderCards, renderStats, filteredCommands
         ├── modal.js            ← openModal, closeModal, updateModalFields, tag chips
         ├── drawer.js           ← openDrawer, close/run-all listeners
-        ├── terminal.js         ← initTerminal, switchToTerminal, terminalMap
-        └── prefs-modal.js      ← openPrefsModal, closePrefsModal, hotkey recording
+        ├── terminal.js         ← initTerminal, switchToTerminal, terminalMap, XTERM_THEMES, setXtermTheme
+        └── prefs-modal.js      ← openPrefsModal, closePrefsModal, hotkey recording, theme radio
 ```
 
 ## Design Language
 
-- **Theme:** Dark, industrial/utilitarian. Think terminal meets control panel.
-- **Accent colors:** `#4ade80` (terminal green, "running" state), `#22d3ee` (cyan, info/log), `#f87171` (red, danger/kill), `#fbbf24` (amber, launcher/edit)
-- **Background layers:** `--bg: #0c0e14`, `--bg2: #12151f`, `--bg3: #1a1e2e`
+- **Theme:** Dark by default (industrial/utilitarian — terminal meets control panel). A "Paper" light theme is also available, toggled in Preferences or inherited from the OS `prefers-color-scheme` setting.
+- **Accent colors (dark):** `#4ade80` (terminal green, "running" state), `#22d3ee` (cyan, info/log), `#f87171` (red, danger/kill), `#fbbf24` (amber, launcher/edit)
+- **Accent colors (light/Paper):** `#15803d` (darkened green for WCAG contrast), `#0369a1` (blue-cyan), `#dc2626` (red), `#b45309` (amber-brown)
+- **Background layers (dark):** `--bg: #0c0e14`, `--bg2: #12151f`, `--bg3: #1a1e2e`
+- **Background layers (light/Paper):** `--bg: #fafaf7`, `--bg2: #f2f2ec`, `--bg3: #e8e8e0`
 - **Typography:** Syne 800 for headings, JetBrains Mono for commands/meta/code
 - **Card anatomy:** top accent bar (green when running), label + note, command preview, meta (PID + timestamp), toggle/launch control, action buttons
 
@@ -194,3 +197,4 @@ These were identified at the end of the prototype session — good starting poin
 - **Tags vs. group** — the old `group: string` field is obsolete. The schema now uses `tags: string[]`. `migrateCommands()` in `utils.js` auto-converts old configs on `loadAll()` — no manual migration needed. Never write a `group` field to `commands.json`.
 - **SortableJS instance** — `sortableInstance` in `cards.js` must be destroyed before every `renderCards()` call (innerHTML replacement detaches old DOM nodes). The empty-state path also destroys it. Do not call `Sortable.create()` without first calling `sortableInstance.destroy()`.
 - **Drag reorder selector** — `handleDragEnd` uses `.card[data-id]` (not bare `[data-id]`) to read card order from the DOM. Card action buttons also carry `data-id`; the class scope prevents them being picked up as card roots.
+- **Theming system** — theme is driven by a `data-theme` attribute on `<html>` (`"dark"` or `"light"`). `style.css` defines the dark default in `:root`; `theme-light.css` overrides variables under `[data-theme="light"]`. `initTheme(pref)` in `app.js` resolves the pref (`"system"` | `"light"` | `"dark"`), sets the attribute, and manages a `matchMedia` OS-change listener. The xterm.js terminal follows via `setXtermTheme(mode)` in `terminal.js`, which updates `term.options.theme` on all open terminals. Theme preference is stored as `prefs.theme` in `~/.commanddeck/prefs.json`. Tray icon is intentionally excluded — it lives in the OS tray, not the app window.
