@@ -70,6 +70,10 @@ function register(ipcMain, { procMgr, ptyMgr, win, cfgIo, globalShortcut, dialog
   });
 
   ipcMain.handle('kill-process', (_, { pid }) => {
+    if (!Number.isInteger(pid) || pid <= 1) return { ok: false, error: 'invalid_pid' };
+    if (![...procMgr.liveProcesses.values()].flat().some(p => p.pid === pid)) {
+      return { ok: false, error: 'unknown_pid' };
+    }
     try {
       procMgr.killProcess(pid);
       win.updateTrayIcon({
