@@ -2,15 +2,19 @@ import { keyEventToAccelerator } from './utils.js';
 
 let hotkeyRecording = false;
 let hotkeyRecordPrev = '';
-let _getPrefs, _setPrefs;
+let _getPrefs, _setPrefs, _applyTheme;
+let themePrefAtOpen = 'system';
 
-export function initPrefsModal({ getPrefs, setPrefs }) {
+export function initPrefsModal({ getPrefs, setPrefs, applyTheme }) {
   _getPrefs = getPrefs;
   _setPrefs = setPrefs;
+  _applyTheme = applyTheme;
 }
 
 export async function openPrefsModal() {
   const p = _getPrefs();
+  themePrefAtOpen = p.theme || 'system';
+  document.querySelector(`input[name="p-theme"][value="${themePrefAtOpen}"]`).checked = true;
   document.getElementById('p-hotkey').value = p.hotkey || '';
   document.getElementById('p-hotkey-error').textContent = '';
   document.getElementById('p-notify-crash').checked = p.notify.onCrash;
@@ -57,11 +61,16 @@ function handleHotkeyCapture(e) {
   stopHotkeyRecording();
 }
 
+function cancelPrefsModal() {
+  _applyTheme(themePrefAtOpen);
+  closePrefsModal();
+}
+
 document.getElementById('btn-prefs').addEventListener('click', openPrefsModal);
-document.getElementById('prefs-close').addEventListener('click', closePrefsModal);
-document.getElementById('prefs-cancel').addEventListener('click', closePrefsModal);
+document.getElementById('prefs-close').addEventListener('click', cancelPrefsModal);
+document.getElementById('prefs-cancel').addEventListener('click', cancelPrefsModal);
 document.getElementById('prefs-backdrop').addEventListener('click', e => {
-  if (e.target === e.currentTarget) closePrefsModal();
+  if (e.target === e.currentTarget) cancelPrefsModal();
 });
 document.getElementById('p-hotkey-record').addEventListener('click', () => {
   if (hotkeyRecording) stopHotkeyRecording(true);
@@ -71,12 +80,17 @@ document.getElementById('p-hotkey-clear').addEventListener('click', () => {
   stopHotkeyRecording();
   document.getElementById('p-hotkey').value = '';
 });
+document.querySelectorAll('input[name="p-theme"]').forEach(radio => {
+  radio.addEventListener('change', (e) => _applyTheme(e.target.value));
+});
 document.getElementById('prefs-save').addEventListener('click', async () => {
   const hotkey = document.getElementById('p-hotkey').value.trim();
+  const theme = document.querySelector('input[name="p-theme"]:checked').value;
   const p = _getPrefs();
   const updated = {
     ...p,
     hotkey,
+    theme,
     notify: {
       onCrash: document.getElementById('p-notify-crash').checked,
       onUnexpectedExit: document.getElementById('p-notify-unexpected').checked,
@@ -89,5 +103,6 @@ document.getElementById('prefs-save').addEventListener('click', async () => {
   }
   await window.api.setAutostart(document.getElementById('p-autostart').checked);
   _setPrefs(updated);
+  _applyTheme(theme);
   closePrefsModal();
 });
