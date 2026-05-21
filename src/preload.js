@@ -34,7 +34,16 @@ contextBridge.exposeInMainWorld('api', {
   ptyCreate:  (commandId) => ipcRenderer.invoke('pty-create', { commandId }),
   ptyWrite:   (commandId, data) => ipcRenderer.invoke('pty-write', { commandId, data }),
   ptyResize:  (commandId, cols, rows) => ipcRenderer.invoke('pty-resize', { commandId, cols, rows }),
-  onPtyData:  (cb) => ipcRenderer.on('pty-data', (_, payload) => cb(payload)),
+  onPtyData:  (cb) => {
+    const handler = (_, payload) => cb(payload);
+    ipcRenderer.on('pty-data', handler);
+    return () => ipcRenderer.removeListener('pty-data', handler);
+  },
+  onPtyExit:  (cb) => {
+    const handler = (_, payload) => cb(payload);
+    ipcRenderer.on('pty-exit', handler);
+    return () => ipcRenderer.removeListener('pty-exit', handler);
+  },
 
   // Events from main → renderer
   onProcessExited: (cb) => ipcRenderer.on('process-exited', (_, data) => cb(data)),

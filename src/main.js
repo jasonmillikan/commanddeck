@@ -399,10 +399,10 @@ ipcMain.handle('open-log-dir', () => {
 
 ipcMain.handle('pty-create', (_, { commandId }) => {
   if (ptyProcesses.has(commandId)) return { ok: true };
-  const shell = process.platform === 'win32'
+  const shellExe = process.platform === 'win32'
     ? 'powershell.exe'
     : (process.env.SHELL || '/bin/bash');
-  const ptyProcess = pty.spawn(shell, [], {
+  const ptyProcess = pty.spawn(shellExe, [], {
     name: 'xterm-color',
     cols: 80,
     rows: 24,
@@ -412,16 +412,22 @@ ipcMain.handle('pty-create', (_, { commandId }) => {
   ptyProcess.onData(data => {
     if (mainWindow) mainWindow.webContents.send('pty-data', { commandId, data });
   });
+  ptyProcess.onExit(({ exitCode }) => {
+    ptyProcesses.delete(commandId);
+    if (mainWindow) mainWindow.webContents.send('pty-exit', { commandId, exitCode });
+  });
   ptyProcesses.set(commandId, ptyProcess);
   return { ok: true };
 });
 
 ipcMain.handle('pty-write', (_, { commandId, data }) => {
+  if (typeof data !== 'string') return { ok: false };
   ptyProcesses.get(commandId)?.write(data);
   return { ok: true };
 });
 
 ipcMain.handle('pty-resize', (_, { commandId, cols, rows }) => {
+  if (!Number.isInteger(cols) || cols < 1 || !Number.isInteger(rows) || rows < 1) return { ok: false };
   ptyProcesses.get(commandId)?.resize(cols, rows);
   return { ok: true };
 });
