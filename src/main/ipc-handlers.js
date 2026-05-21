@@ -84,6 +84,7 @@ function register(ipcMain, { procMgr, ptyMgr, win, cfgIo, globalShortcut, dialog
 
   ipcMain.handle('open-log', (_, { logFile }) => { shell.openPath(logFile); return true; });
   ipcMain.handle('open-log-dir', () => { shell.openPath(LOG_DIR); return true; });
+  ipcMain.handle('open-external', (_, url) => shell.openExternal(url));
 
   ipcMain.handle('pty-create', (_, { commandId }) => ptyMgr.ptyCreate(commandId));
   ipcMain.handle('pty-write',  (_, { commandId, data }) => ptyMgr.ptyWrite(commandId, data));
