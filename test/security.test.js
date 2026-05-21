@@ -71,3 +71,19 @@ test('validateConfig: rejects tag string with invalid characters', () => {
   const bad = { commands: [{ id: 'abc', label: 'X', type: 'toggle', tags: ['<script>'] }] };
   assert.equal(validateConfig(bad).ok, false);
 });
+
+test('validateConfig: rejects tag with control characters', () => {
+  const tabTag = { commands: [{ id: 'abc', label: 'X', type: 'toggle', tags: ['tag\twith\ttabs'] }] };
+  assert.equal(validateConfig(tabTag).ok, false);
+
+  const newlineTag = { commands: [{ id: 'abc', label: 'X', type: 'toggle', tags: ['tag\nwith\nnewline'] }] };
+  assert.equal(validateConfig(newlineTag).ok, false);
+});
+
+test('validateConfig: rejects non-boolean autoRestore', () => {
+  const bad = { commands: [{ id: 'abc', label: 'X', type: 'toggle', autoRestore: 'yes' }] };
+  assert.equal(validateConfig(bad).ok, false);
+
+  const good = { commands: [{ id: 'abc', label: 'X', type: 'toggle', autoRestore: true }] };
+  assert.equal(validateConfig(good).ok, true);
+});

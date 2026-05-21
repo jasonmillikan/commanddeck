@@ -1,5 +1,5 @@
 const VALID_ID   = /^[0-9a-z]{1,32}$/;
-const VALID_TAG  = /^[0-9a-zA-Z\s\-_]{1,50}$/;
+const VALID_TAG  = /^[0-9a-zA-Z \-_]{1,50}$/;
 const VALID_TYPE = new Set(['toggle', 'launcher', 'foreground', 'cheatsheet']);
 const MAX_STR    = 500;
 
@@ -29,6 +29,9 @@ function validateConfig(data) {
       if (cmd[field] !== undefined && (typeof cmd[field] !== 'string' || cmd[field].length > MAX_STR)) {
         return { ok: false, error: `invalid field "${field}" on command ${cmd.id}` };
       }
+    }
+    if (cmd.autoRestore !== undefined && typeof cmd.autoRestore !== 'boolean') {
+      return { ok: false, error: `invalid autoRestore on command ${cmd.id}` };
     }
     if (cmd.tags !== undefined) {
       if (!Array.isArray(cmd.tags)) {
