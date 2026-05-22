@@ -18,9 +18,9 @@ const STARTER_DATA = {
       launchCmd: 'xdg-open ~',
     },
     {
-      id: 'starter-linux-system-monitor', label: 'System Monitor', type: 'foreground', tags: ['System'],
-      note: 'Install if needed: sudo apt install htop (or dnf/pacman equivalent).',
-      onCmd: 'htop',
+      id: 'starter-linux-system-monitor', label: 'System Stats', type: 'foreground', tags: ['System'],
+      note: 'Streams CPU, memory, IO, and system stats every second. Part of procps — installed by default on most distros.',
+      onCmd: 'vmstat 1',
     },
     {
       id: 'starter-linux-network-toolkit', label: 'Network Toolkit', type: 'cheatsheet', tags: ['Network'],
