@@ -137,6 +137,7 @@ export function initHelpModal({ getConfig, getPlatform, addCommand }) {
 }
 
 export function openHelpModal() {
+  if (!_getPlatform) return;
   _activeSection = 'overview';
   _renderNav();
   _renderContent();
@@ -171,7 +172,7 @@ function _renderContent() {
 function _overviewHtml() {
   const types = [
     { type: 'toggle',     name: 'ON / OFF command pairs',  desc: 'Flip system settings with two commands. e.g. load/unload a module, start/stop a service.' },
-    { type: 'launcher',   name: 'Fire &amp; forget',       desc: 'Launch an app detached. It keeps running after CommandDeck closes.' },
+    { type: 'launcher',   name: 'Fire & forget',           desc: 'Launch an app detached. It keeps running after CommandDeck closes.' },
     { type: 'foreground', name: 'Managed process',         desc: 'Runs attached, streams output, killable. Perfect for servers or sync daemons.' },
     { type: 'cheatsheet', name: 'Reference card',          desc: 'Clickable snippets in an in-app terminal. No command runs until you choose.' },
   ];
@@ -215,6 +216,10 @@ async function _handleRecreate(starterId) {
   const all = STARTER_DATA[plat] || STARTER_DATA.linux;
   const starter = all.find(s => s.id === starterId);
   if (!starter) return;
-  await _addCommand(starter);
-  _renderContent();
+  try {
+    await _addCommand(starter);
+    _renderContent();
+  } catch (err) {
+    console.error('Failed to recreate starter command', starterId, err);
+  }
 }
