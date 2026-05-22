@@ -42,7 +42,7 @@ commanddeck/
     │   ├── window.js           ← createWindow, createTray, toggleWindow, updateTrayIcon
     │   ├── process-manager.js  ← spawnCommand, kill, toggle state, liveProcesses Map
     │   ├── pty-manager.js      ← ptyCreate, ptyWrite, ptyResize, killAllPty
-    │   ├── ipc-handlers.js     ← all ipcMain.handle() registrations (wiring only)
+    │   ├── ipc-handlers.js     ← all ipcMain.handle() registrations (wiring + input validation)
     │   ├── validate-config.js  ← validateConfig() — pure schema validator for commands.json data
     │   ├── tray-icon.js        ← stateful tray icon renderer (SVG, no static assets)
     │   ├── prefs.js            ← loadPrefs, savePrefs, sanitizePrefs, DEFAULTS

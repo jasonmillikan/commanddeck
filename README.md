@@ -15,6 +15,7 @@ CommandDeck sits in your system tray and gives you a visual board of commands yo
 | **Toggle** | ON command to activate, OFF command to deactivate | `pactl load-module ...` / `pactl unload-module ...` |
 | **Launcher** | Fires and detaches (the app lives on its own) | `flatpak run com.valveSoftware.Steam` |
 | **Foreground** | Runs managed — output is captured, PID tracked, killable | `syncthing -allow-newer-config` |
+| **Cheatsheet** | Reference card — open snippets in an in-app terminal or your system terminal | `ip addr show`, `ss -tulnp` |
 
 Features:
 - ✅ System tray — minimize to tray, always reachable
@@ -66,9 +67,10 @@ Click **+ New Command** and fill in:
 
 - **Label** — a short name, e.g. `Steam` or `Audio Loopback`
 - **Note** — optional reminder of what it does
-- **Type** — Toggle, Launcher, or Foreground (see table above)
+- **Type** — Toggle, Launcher, Foreground, or Cheatsheet (see table above)
 - **ON Command** — the command to run when toggled on / launched
 - **OFF Command** — (Toggle only) the command to run when toggled off
+- **Content** — (Cheatsheet only) newline-separated list of commands. Each line appears as a clickable snippet — click to send it to the in-app terminal, or open the whole sheet in your system terminal.
 - **Tags** — optional, e.g. `Audio`, `Gaming`. A command can have multiple tags. Click a tag in the sidebar to filter. Drag cards by their left-edge grip handle to reorder.
 
 ---
@@ -104,6 +106,14 @@ Your commands are stored at `~/.commanddeck/commands.json`. Example:
       "type": "foreground",
       "tags": ["Sync"],
       "onCmd": "syncthing -allow-newer-config"
+    },
+    {
+      "id": "jkl012",
+      "label": "Network Info",
+      "note": "Handy network commands",
+      "type": "cheatsheet",
+      "tags": ["Network"],
+      "content": "ip addr show\nip route\nss -tulnp"
     }
   ]
 }
@@ -128,7 +138,7 @@ Open **Preferences** (⚙ in the titlebar) and enable **Launch at login**. Comma
 - [x] Drag-to-reorder cards
 - [ ] Card tags as collapsible sections
 - [ ] `.deb` / AppImage packaging
-- [ ] Dark/light theme toggle
+- [x] Dark/light theme (Paper)
 
 ---
 
