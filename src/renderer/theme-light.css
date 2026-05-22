@@ -13,3 +13,5 @@
   --text-dim:  #6b7280;
   --text-mid:  #4b5563;
 }
+
+[data-theme="light"] .btn-recreate { color: #fff; }

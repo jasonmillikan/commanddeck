@@ -789,15 +789,11 @@ body { font-family: var(--font-ui); font-size: 14px; display: flex; flex-directi
 
 /* ── Help Modal ──────────────────────────────────────────────────────────────── */
 #help-modal {
-  background: var(--bg2);
-  border: 1px solid var(--border2);
-  border-radius: 10px;
   width: 700px;
   max-width: 95vw;
   max-height: 85vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 24px 60px rgba(0,0,0,0.5);
   overflow: hidden;
 }
 
