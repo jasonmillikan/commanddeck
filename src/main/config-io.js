@@ -28,9 +28,14 @@ function ensureConfigDir({ configPath = CONFIG_PATH, logDir = LOG_DIR, statePath
   if (!fs.existsSync(configPath)) {
     const plat = process.platform === 'darwin' ? 'mac' : process.platform === 'win32' ? 'windows' : 'linux';
     const defaultsPath = path.join(__dirname, '..', 'defaults', `commands-${plat}.json`);
-    const content = fs.existsSync(defaultsPath)
-      ? fs.readFileSync(defaultsPath, 'utf8')
-      : JSON.stringify({ commands: [] }, null, 2);
+    let content = JSON.stringify({ commands: [] }, null, 2);
+    if (fs.existsSync(defaultsPath)) {
+      try {
+        const raw = fs.readFileSync(defaultsPath, 'utf8');
+        JSON.parse(raw);
+        content = raw;
+      } catch { /* fall through to empty default */ }
+    }
     fs.writeFileSync(configPath, content);
     firstRun = true;
   }

@@ -61,6 +61,7 @@ test('ensureConfigDir: returns firstRun true when config file did not exist', ()
   assert.ok(fs.existsSync(configPath));
   const data = JSON.parse(fs.readFileSync(configPath, 'utf8'));
   assert.ok(Array.isArray(data.commands), 'config should have commands array');
+  assert.ok(data.commands.length > 0, 'first-run config should contain starter commands, not empty array');
   fs.rmSync(base, { recursive: true });
 });
 
