@@ -192,6 +192,7 @@ function _overviewHtml() {
 
 function _typeHtml(type) {
   const meta = SECTION_META[type];
+  if (!meta) return '<p>Unknown section.</p>';
   const plat = _getPlatform();
   const starters = (STARTER_DATA[plat] || STARTER_DATA.linux).filter(s => s.type === type);
   const currentIds = new Set((_getConfig().commands || []).map(c => c.id));
