@@ -49,3 +49,31 @@ test('ensureConfigDir: creates missing directories', () => {
   assert.ok(fs.existsSync(configPath));
   fs.rmSync(base, { recursive: true });
 });
+
+test('ensureConfigDir: returns firstRun true when config file did not exist', () => {
+  const base = path.join(os.tmpdir(), 'cd-fr-' + Date.now());
+  const configPath = path.join(base, 'commands.json');
+  const logDir = path.join(base, 'logs');
+  const statePath = path.join(base, 'state.json');
+  const prefsPath = path.join(base, 'prefs.json');
+  const result = ensureConfigDir({ configPath, logDir, statePath, prefsPath });
+  assert.equal(result.firstRun, true);
+  assert.ok(fs.existsSync(configPath));
+  const data = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+  assert.ok(Array.isArray(data.commands), 'config should have commands array');
+  assert.ok(data.commands.length > 0, 'first-run config should contain starter commands, not empty array');
+  fs.rmSync(base, { recursive: true });
+});
+
+test('ensureConfigDir: returns firstRun false when config file already exists', () => {
+  const base = path.join(os.tmpdir(), 'cd-fr2-' + Date.now());
+  const configPath = path.join(base, 'commands.json');
+  const logDir = path.join(base, 'logs');
+  const statePath = path.join(base, 'state.json');
+  const prefsPath = path.join(base, 'prefs.json');
+  fs.mkdirSync(base, { recursive: true });
+  fs.writeFileSync(configPath, JSON.stringify({ commands: [] }, null, 2));
+  const result = ensureConfigDir({ configPath, logDir, statePath, prefsPath });
+  assert.equal(result.firstRun, false);
+  fs.rmSync(base, { recursive: true });
+});

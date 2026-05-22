@@ -22,10 +22,22 @@ function saveConfig(configPath = CONFIG_PATH, data) {
 
 function ensureConfigDir({ configPath = CONFIG_PATH, logDir = LOG_DIR, statePath = STATE_PATH, prefsPath = PREFS_PATH } = {}) {
   const { savePrefs, DEFAULTS } = require('./prefs');
+  let firstRun = false;
   if (!fs.existsSync(path.dirname(configPath))) fs.mkdirSync(path.dirname(configPath), { recursive: true });
   if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
   if (!fs.existsSync(configPath)) {
-    fs.writeFileSync(configPath, JSON.stringify({ commands: [] }, null, 2));
+    const plat = process.platform === 'darwin' ? 'mac' : process.platform === 'win32' ? 'windows' : 'linux';
+    const defaultsPath = path.join(__dirname, '..', 'defaults', `commands-${plat}.json`);
+    let content = JSON.stringify({ commands: [] }, null, 2);
+    if (fs.existsSync(defaultsPath)) {
+      try {
+        const raw = fs.readFileSync(defaultsPath, 'utf8');
+        JSON.parse(raw);
+        content = raw;
+      } catch { /* fall through to empty default */ }
+    }
+    fs.writeFileSync(configPath, content);
+    firstRun = true;
   }
   if (!fs.existsSync(statePath)) {
     fs.writeFileSync(statePath, JSON.stringify({ toggles: {} }, null, 2));
@@ -33,6 +45,7 @@ function ensureConfigDir({ configPath = CONFIG_PATH, logDir = LOG_DIR, statePath
   if (!fs.existsSync(prefsPath)) {
     savePrefs(prefsPath, { ...DEFAULTS, notify: { ...DEFAULTS.notify } });
   }
+  return { firstRun };
 }
 
 function detectTerminalApp() {

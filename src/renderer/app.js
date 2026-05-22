@@ -4,9 +4,11 @@ import { openModal, initModal } from './modal.js';
 import { openDrawer, initDrawer, getDrawerCommandId } from './drawer.js';
 import { initTerminal, getTerminalEntry, deleteTerminalEntry, getActiveTerminalId, setXtermTheme } from './terminal.js';
 import { openPrefsModal, initPrefsModal } from './prefs-modal.js';
+import { initHelpModal, openHelpModal } from './help-modal.js';
 
 // ─── State ────────────────────────────────────────────────────────────────────
 let config = { commands: [] };
+let platform = 'linux';
 // commandId → { pid, startedAt, logFile }[]
 let liveMap = {};
 // commandId → latest output lines[]
@@ -48,14 +50,17 @@ function initTheme(pref) {
 // ─── Config persistence ───────────────────────────────────────────────────────
 async function loadAll() {
   const raw = await window.api.loadConfig();
+  const { firstRun, platform: p } = raw;
+  platform = p || 'linux';
   const { commands, changed } = migrateCommands(raw.commands || []);
-  config = { ...raw, commands };
+  config = { commands };
   if (changed) await window.api.saveConfig(config);
   liveMap = await window.api.getLiveProcesses();
   prefs = await window.api.loadPrefs();
   document.getElementById('output-drawer').style.height = (prefs.drawerHeight || 240) + 'px';
   initTheme(prefs.theme || 'system');
   renderAll();
+  if (firstRun) openHelpModal();
 }
 
 async function persist() {
@@ -262,6 +267,7 @@ document.getElementById('btn-import').addEventListener('click', async () => {
   const result = await window.api.importConfig();
   if (result.ok) { config = result.data; renderAll(); }
 });
+document.getElementById('btn-help').addEventListener('click', () => openHelpModal());
 
 // ─── Drawer resize ────────────────────────────────────────────────────────────
 (function initDrawerResize() {
@@ -302,5 +308,14 @@ document.getElementById('btn-import').addEventListener('click', async () => {
 initModal({ getConfig: () => config, persist, renderAll });
 initDrawer({ getConfig: () => config, getOutputMap: () => outputMap, getLiveMap: () => liveMap });
 initPrefsModal({ getPrefs: () => prefs, setPrefs: (p) => { prefs = p; }, applyTheme: initTheme });
+initHelpModal({
+  getConfig:   () => config,
+  getPlatform: () => platform || 'linux',
+  addCommand:  async (cmd) => {
+    config = { ...config, commands: [...config.commands, cmd] };
+    await persist();
+    renderAll();
+  },
+});
 
 loadAll();

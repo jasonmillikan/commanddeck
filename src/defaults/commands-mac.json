@@ -1,0 +1,46 @@
+{
+  "commands": [
+    {
+      "id": "starter-mac-dark-mode",
+      "label": "Dark Mode",
+      "note": "Toggles system-wide dark/light appearance.",
+      "type": "toggle",
+      "tags": ["Appearance"],
+      "onCmd": "osascript -e 'tell app \"System Events\" to tell appearance preferences to set dark mode to true'",
+      "offCmd": "osascript -e 'tell app \"System Events\" to tell appearance preferences to set dark mode to false'"
+    },
+    {
+      "id": "starter-mac-wifi",
+      "label": "Wi-Fi",
+      "note": "Interface is usually en0, but may vary — run 'networksetup -listallhardwareports' to confirm.",
+      "type": "toggle",
+      "tags": ["Network"],
+      "onCmd": "networksetup -setairportpower en0 on",
+      "offCmd": "networksetup -setairportpower en0 off"
+    },
+    {
+      "id": "starter-mac-finder",
+      "label": "Open Home Folder",
+      "note": "Opens your home directory in Finder.",
+      "type": "launcher",
+      "tags": ["Apps"],
+      "launchCmd": "open ~"
+    },
+    {
+      "id": "starter-mac-keep-awake",
+      "label": "Keep Awake",
+      "note": "Prevents the display from sleeping while running. Kill to allow sleep again.",
+      "type": "foreground",
+      "tags": ["System"],
+      "onCmd": "caffeinate -d"
+    },
+    {
+      "id": "starter-mac-network-toolkit",
+      "label": "Network Toolkit",
+      "note": "Common network diagnostics for macOS.",
+      "type": "cheatsheet",
+      "tags": ["Network"],
+      "content": "ifconfig\nnetstat -rn\ncurl ifconfig.me\nnetworksetup -listallnetworkservices\nscutil --dns"
+    }
+  ]
+}

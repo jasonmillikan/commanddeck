@@ -4,11 +4,17 @@ const os   = require('os');
 const { validateConfig } = require('./validate-config');
 const activeTempFiles = new Set();
 
-function register(ipcMain, { procMgr, ptyMgr, win, cfgIo, globalShortcut, dialog, shell }) {
+function register(ipcMain, { procMgr, ptyMgr, win, cfgIo, globalShortcut, dialog, shell, firstRun = false }) {
   const { CONFIG_PATH, LOG_DIR, AUTOSTART_PATH, loadConfig, saveConfig, autostartDesktopContent, detectTerminalApp } = cfgIo;
   const { spawn } = require('child_process');
+  let _firstRun = firstRun;
 
-  ipcMain.handle('load-config', () => loadConfig());
+  ipcMain.handle('load-config', () => {
+    const data = loadConfig();
+    const fr = _firstRun;
+    _firstRun = false;
+    return { commands: data.commands || [], firstRun: fr, platform: process.platform };
+  });
   ipcMain.handle('save-config', (_, data) => {
     const check = validateConfig(data);
     if (!check.ok) return { ok: false, error: check.error };

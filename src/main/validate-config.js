@@ -1,4 +1,4 @@
-const VALID_ID   = /^[0-9a-z]{1,32}$/;
+const VALID_ID   = /^[0-9a-z][0-9a-z-]{0,31}$/;
 const VALID_TAG  = /^[0-9a-zA-Z \-_]{1,50}$/;
 const VALID_TYPE = new Set(['toggle', 'launcher', 'foreground', 'cheatsheet']);
 const MAX_STR    = 500;

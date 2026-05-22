@@ -24,6 +24,7 @@
       <button class="tb-btn" id="btn-export" title="Export config">↑</button>
       <button class="tb-btn" id="btn-import" title="Import config">↓</button>
       <button class="tb-btn" id="btn-prefs" title="Preferences">⚙</button>
+      <button class="tb-btn" id="btn-help" title="Help &amp; Getting Started">?</button>
       <button class="tb-btn" id="btn-minimize" title="Minimize">−</button>
       <button class="tb-btn" id="btn-maximize" title="Maximize">□</button>
       <button class="tb-btn tb-btn-close" id="btn-hide" title="Hide to tray">×</button>
@@ -172,6 +173,25 @@
       <div class="modal-footer">
         <button class="btn-secondary" id="prefs-cancel">Cancel</button>
         <button class="btn-primary" id="prefs-save">Save Preferences</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Help -->
+  <div class="modal-backdrop" id="help-backdrop">
+    <div class="modal" id="help-modal">
+      <div class="help-hero">
+        <div class="help-hero-icon">⬡</div>
+        <div class="help-hero-title">Welcome to CommandDeck, <span class="help-hero-user">user</span></div>
+        <div class="help-hero-tagline">Your visual toggle board for terminal commands — power your daily workflow from the tray.</div>
+      </div>
+      <div class="help-body">
+        <nav class="help-nav" id="help-nav"></nav>
+        <div class="help-content" id="help-content"></div>
+      </div>
+      <div class="help-footer">
+        <span class="help-footer-hint">Navigate sections using the left panel →</span>
+        <button class="btn-secondary" id="help-close">Close</button>
       </div>
     </div>
   </div>
