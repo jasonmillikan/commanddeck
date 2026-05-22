@@ -808,9 +808,9 @@ body { font-family: var(--font-ui); font-size: 14px; display: flex; flex-directi
 .help-hero-title {
   font-family: var(--font-ui);
   font-weight: 800;
-  font-size: 18px;
+  font-size: 20px;
   color: var(--text);
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   margin-bottom: 4px;
 }
 .help-hero-user { color: var(--accent2); }
