@@ -38,6 +38,10 @@ function createWindow(preloadPath, rendererPath, callbacks = {}) {
   });
 
   mainWindow.loadFile(rendererPath);
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    if (!url.startsWith('file://')) event.preventDefault();
+  });
+  mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   mainWindow.once('ready-to-show', () => mainWindow.show());
   mainWindow.on('close', (e) => {
     e.preventDefault();

@@ -1,13 +1,20 @@
 const path = require('path');
 const fs   = require('fs');
 const os   = require('os');
+const { validateConfig } = require('./validate-config');
+const activeTempFiles = new Set();
 
 function register(ipcMain, { procMgr, ptyMgr, win, cfgIo, globalShortcut, dialog, shell }) {
   const { CONFIG_PATH, LOG_DIR, AUTOSTART_PATH, loadConfig, saveConfig, autostartDesktopContent, detectTerminalApp } = cfgIo;
   const { spawn } = require('child_process');
 
   ipcMain.handle('load-config', () => loadConfig());
-  ipcMain.handle('save-config', (_, data) => { saveConfig(CONFIG_PATH, data); return true; });
+  ipcMain.handle('save-config', (_, data) => {
+    const check = validateConfig(data);
+    if (!check.ok) return { ok: false, error: check.error };
+    saveConfig(CONFIG_PATH, data);
+    return { ok: true };
+  });
 
   ipcMain.handle('load-prefs', () => {
     const { loadPrefs } = require('./prefs');
@@ -29,23 +36,30 @@ function register(ipcMain, { procMgr, ptyMgr, win, cfgIo, globalShortcut, dialog
   });
 
   ipcMain.handle('save-prefs', (_, data) => {
-    const { savePrefs } = require('./prefs');
+    const { savePrefs, sanitizePrefs } = require('./prefs');
     const { PREFS_PATH } = cfgIo;
+    const safe = sanitizePrefs(data);
     globalShortcut.unregisterAll();
-    if (data.hotkey) {
-      const ok = globalShortcut.register(data.hotkey, win.toggleWindow);
+    if (safe.hotkey) {
+      const ok = globalShortcut.register(safe.hotkey, win.toggleWindow);
       if (!ok) return { ok: false, error: 'hotkey_conflict' };
     }
-    procMgr.setPrefs(data);
-    savePrefs(PREFS_PATH, data);
+    procMgr.setPrefs(safe);
+    savePrefs(PREFS_PATH, safe);
     return { ok: true };
   });
 
   ipcMain.handle('get-live-processes', () => procMgr.getLiveProcesses());
 
-  ipcMain.handle('run-command', async (_, { commandId, label, cmdString, type }) => {
+  ipcMain.handle('run-command', async (_, { commandId, type }) => {
+    const cfg = cfgIo.loadConfig();
+    const cmd = (cfg.commands || []).find(c => c.id === commandId);
+    if (!cmd) return { ok: false, error: 'unknown_command' };
+    const cmdString = type === 'toggle-off' ? cmd.offCmd : (cmd.onCmd || cmd.launchCmd);
+    if (!cmdString) return { ok: false, error: 'no_cmd_for_type' };
+
     if (type === 'toggle-on' || type === 'launcher' || type === 'foreground') {
-      const result = procMgr.spawnCommand(commandId, label, cmdString, type);
+      const result = procMgr.spawnCommand(commandId, cmd.label, cmdString, type);
       win.updateTrayIcon({
         running: procMgr.liveProcesses.size + procMgr.activeTogglesMeta.size + procMgr.lastSessionToggles.size,
         alertState: procMgr.getAlertState(),
@@ -66,10 +80,14 @@ function register(ipcMain, { procMgr, ptyMgr, win, cfgIo, globalShortcut, dialog
       }
       return { ok: result.ok, logFile };
     }
-    return { ok: false, error: 'Unknown type' };
+    return { ok: false, error: 'unknown_type' };
   });
 
   ipcMain.handle('kill-process', (_, { pid }) => {
+    if (!Number.isInteger(pid) || pid <= 1) return { ok: false, error: 'invalid_pid' };
+    if (![...procMgr.liveProcesses.values()].flat().some(p => p.pid === pid)) {
+      return { ok: false, error: 'unknown_pid' };
+    }
     try {
       procMgr.killProcess(pid);
       win.updateTrayIcon({
@@ -82,11 +100,28 @@ function register(ipcMain, { procMgr, ptyMgr, win, cfgIo, globalShortcut, dialog
     }
   });
 
-  ipcMain.handle('open-log', (_, { logFile }) => { shell.openPath(logFile); return true; });
+  ipcMain.handle('open-log', (_, { logFile }) => {
+    if (typeof logFile !== 'string') return false;
+    const resolved = path.resolve(logFile);
+    if (!resolved.startsWith(LOG_DIR + path.sep)) return false;
+    shell.openPath(resolved);
+    return true;
+  });
   ipcMain.handle('open-log-dir', () => { shell.openPath(LOG_DIR); return true; });
-  ipcMain.handle('open-external', (_, url) => shell.openExternal(url));
+  ipcMain.handle('open-external', async (_, url) => {
+    let parsed;
+    try { parsed = new URL(url); } catch { return { ok: false }; }
+    if (!['https:', 'http:'].includes(parsed.protocol)) return { ok: false };
+    await shell.openExternal(parsed.href);
+    return { ok: true };
+  });
 
-  ipcMain.handle('pty-create', (_, { commandId }) => ptyMgr.ptyCreate(commandId));
+  ipcMain.handle('pty-create', (_, { commandId }) => {
+    const cfg = cfgIo.loadConfig();
+    const cmd = (cfg.commands || []).find(c => c.id === commandId && c.type === 'cheatsheet');
+    if (!cmd) return { ok: false, error: 'unknown_cheatsheet' };
+    return ptyMgr.ptyCreate(commandId);
+  });
   ipcMain.handle('pty-write',  (_, { commandId, data }) => ptyMgr.ptyWrite(commandId, data));
   ipcMain.handle('pty-resize', (_, { commandId, cols, rows }) => ptyMgr.ptyResize(commandId, cols, rows));
 
@@ -95,7 +130,11 @@ function register(ipcMain, { procMgr, ptyMgr, win, cfgIo, globalShortcut, dialog
     const safeCmdId = cmdId.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64);
     const tmpFile = path.join(os.tmpdir(), `commanddeck-${safeCmdId}-${Date.now()}.sh`);
     fs.writeFileSync(tmpFile, content, { mode: 0o600 });
-    setTimeout(() => { try { fs.unlinkSync(tmpFile); } catch {} }, 30000);
+    activeTempFiles.add(tmpFile);
+    setTimeout(() => {
+      try { fs.unlinkSync(tmpFile); } catch {}
+      activeTempFiles.delete(tmpFile);
+    }, 30000);
 
     if (process.platform === 'darwin') {
       const script = `tell application "Terminal" to do script "cat '${tmpFile}'; exec $SHELL"`;
@@ -158,9 +197,21 @@ function register(ipcMain, { procMgr, ptyMgr, win, cfgIo, globalShortcut, dialog
       detail: 'This cannot be undone.',
     });
     if (response !== 0) return { ok: false, canceled: true };
+    const check = validateConfig(data);
+    if (!check.ok) {
+      dialog.showErrorBox('Import rejected', `Invalid config: ${check.error}`);
+      return { ok: false, error: check.error };
+    }
     saveConfig(CONFIG_PATH, data);
     return { ok: true, data };
   });
 }
 
-module.exports = { register };
+function cleanupTempFiles() {
+  for (const f of activeTempFiles) {
+    try { fs.unlinkSync(f); } catch {}
+  }
+  activeTempFiles.clear();
+}
+
+module.exports = { register, cleanupTempFiles };
