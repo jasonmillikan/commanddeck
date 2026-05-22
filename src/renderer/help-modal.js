@@ -153,7 +153,7 @@ function _renderNav() {
   const nav = document.getElementById('help-nav');
   nav.innerHTML = '<div class="help-nav-label section-label">SECTIONS</div>' +
     SECTIONS.map(s =>
-      `<div class="help-nav-item${s.id === _activeSection ? ' active' : ''}" data-section="${s.id}">${s.label}</div>`
+      `<div class="help-nav-item nav-item${s.id === _activeSection ? ' active' : ''}" data-section="${s.id}">${s.label}</div>`
     ).join('');
   nav.querySelectorAll('.help-nav-item').forEach(el => {
     el.addEventListener('click', () => {
