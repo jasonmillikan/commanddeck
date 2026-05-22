@@ -1,0 +1,46 @@
+{
+  "commands": [
+    {
+      "id": "starter-win-dark-mode",
+      "label": "Dark Mode",
+      "note": "Toggles app dark/light theme via registry.",
+      "type": "toggle",
+      "tags": ["Appearance"],
+      "onCmd": "reg add HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize /v AppsUseLightTheme /t REG_DWORD /d 0 /f",
+      "offCmd": "reg add HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize /v AppsUseLightTheme /t REG_DWORD /d 1 /f"
+    },
+    {
+      "id": "starter-win-wifi",
+      "label": "Wi-Fi",
+      "note": "Interface name may vary — run 'netsh interface show interface' to find yours.",
+      "type": "toggle",
+      "tags": ["Network"],
+      "onCmd": "netsh interface set interface \"Wi-Fi\" enabled",
+      "offCmd": "netsh interface set interface \"Wi-Fi\" disabled"
+    },
+    {
+      "id": "starter-win-file-explorer",
+      "label": "Open Home Folder",
+      "note": "Opens your home directory in File Explorer.",
+      "type": "launcher",
+      "tags": ["Apps"],
+      "launchCmd": "explorer.exe ."
+    },
+    {
+      "id": "starter-win-ping-monitor",
+      "label": "Ping Monitor",
+      "note": "Continuous connectivity check — streams output to the in-app terminal.",
+      "type": "foreground",
+      "tags": ["Network"],
+      "onCmd": "ping -t 8.8.8.8"
+    },
+    {
+      "id": "starter-win-network-toolkit",
+      "label": "Network Toolkit",
+      "note": "Common network diagnostics for Windows.",
+      "type": "cheatsheet",
+      "tags": ["Network"],
+      "content": "ipconfig /all\nnetstat -an\ntracert 8.8.8.8\nnslookup google.com\narp -a"
+    }
+  ]
+}

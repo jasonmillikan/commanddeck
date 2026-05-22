@@ -1,0 +1,46 @@
+{
+  "commands": [
+    {
+      "id": "starter-linux-audio-loopback",
+      "label": "Audio Loopback",
+      "note": "Routes mic to speakers. Requires PulseAudio or PipeWire (standard on Ubuntu, Fedora, Arch).",
+      "type": "toggle",
+      "tags": ["Audio"],
+      "onCmd": "pactl load-module module-loopback latency_msec=1",
+      "offCmd": "pactl unload-module module-loopback"
+    },
+    {
+      "id": "starter-linux-wifi",
+      "label": "Wi-Fi",
+      "note": "Requires NetworkManager (standard on most desktop distros).",
+      "type": "toggle",
+      "tags": ["Network"],
+      "onCmd": "nmcli radio wifi on",
+      "offCmd": "nmcli radio wifi off"
+    },
+    {
+      "id": "starter-linux-home-folder",
+      "label": "Open Home Folder",
+      "note": "Opens your default file manager — works across GNOME, KDE, XFCE, and others.",
+      "type": "launcher",
+      "tags": ["Apps"],
+      "launchCmd": "xdg-open ~"
+    },
+    {
+      "id": "starter-linux-system-monitor",
+      "label": "System Monitor",
+      "note": "Install if needed: sudo apt install htop (or dnf/pacman equivalent).",
+      "type": "foreground",
+      "tags": ["System"],
+      "onCmd": "htop"
+    },
+    {
+      "id": "starter-linux-network-toolkit",
+      "label": "Network Toolkit",
+      "note": "Common network diagnostics. nmap requires separate installation.",
+      "type": "cheatsheet",
+      "tags": ["Network"],
+      "content": "ip addr show\nip route\nss -tulnp\ncurl ifconfig.me\nnmap -sn 192.168.1.0/24"
+    }
+  ]
+}
