@@ -177,13 +177,7 @@ body { font-family: var(--font-ui); font-size: 14px; display: flex; flex-directi
 .add-btn:active { transform: scale(0.97); }
 .add-btn-icon { font-size: 18px; line-height: 1; }
 
-.sidebar-section-label {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  color: var(--text-dim);
-  padding: 8px 6px 4px;
-}
+.sidebar-section-label { padding: 8px 6px 4px; }
 
 .group-item {
   padding: 7px 10px;
@@ -743,10 +737,6 @@ body { font-family: var(--font-ui); font-size: 14px; display: flex; flex-directi
   display: block;
 }
 .prefs-section-label {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  color: var(--text-dim);
   margin-top: 6px;
   padding-top: 12px;
   padding-bottom: 2px;
@@ -858,13 +848,7 @@ body { font-family: var(--font-ui); font-size: 14px; display: flex; flex-directi
   gap: 2px;
   overflow-y: auto;
 }
-.help-nav-label {
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  color: var(--text-dim);
-  padding: 6px 8px 4px;
-}
+.help-nav-label { font-size: 9px; padding: 6px 8px 4px; }
 .help-nav-item {
   padding: 7px 10px;
   border-radius: var(--radius);
@@ -892,13 +876,7 @@ body { font-family: var(--font-ui); font-size: 14px; display: flex; flex-directi
 .help-content h3 { font-weight: 700; font-size: 16px; letter-spacing: 0.01em; color: var(--text); margin-bottom: 10px; }
 .help-content p { color: var(--text-mid); line-height: 1.65; font-size: 13px; font-weight: 500; margin-bottom: 16px; }
 
-.help-section-label {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  color: var(--text-dim);
-  margin-bottom: 10px;
-}
+.help-section-label { margin-bottom: 10px; }
 
 .help-type-row {
   padding: 13px 16px;
