@@ -12,7 +12,7 @@
     {
       "id": "starter-mac-wifi",
       "label": "Wi-Fi",
-      "note": "Turns the Wi-Fi radio on or off.",
+      "note": "Interface is usually en0, but may vary — run 'networksetup -listallhardwareports' to confirm.",
       "type": "toggle",
       "tags": ["Network"],
       "onCmd": "networksetup -setairportpower en0 on",

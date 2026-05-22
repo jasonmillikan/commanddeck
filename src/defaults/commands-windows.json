@@ -24,7 +24,7 @@
       "note": "Opens your home directory in File Explorer.",
       "type": "launcher",
       "tags": ["Apps"],
-      "launchCmd": "explorer.exe ."
+      "launchCmd": "explorer.exe %USERPROFILE%"
     },
     {
       "id": "starter-win-ping-monitor",
