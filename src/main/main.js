@@ -11,7 +11,7 @@ const { loadPrefs } = require('./prefs');
 // ─── App lifecycle ────────────────────────────────────────────────────────────
 
 app.whenReady().then(() => {
-  cfgIo.ensureConfigDir();
+  const { firstRun } = cfgIo.ensureConfigDir();
   const prefs = loadPrefs(cfgIo.PREFS_PATH);
 
   const preloadPath  = path.join(__dirname, 'preload.js');
@@ -31,7 +31,7 @@ app.whenReady().then(() => {
   procMgr.init({ getMainWindow: win.getMainWindow, updateTrayIcon: win.updateTrayIcon, prefs });
   ptyMgr.init({ getMainWindow: win.getMainWindow });
 
-  ipc.register(ipcMain, { procMgr, ptyMgr, win, cfgIo, globalShortcut, dialog, shell });
+  ipc.register(ipcMain, { procMgr, ptyMgr, win, cfgIo, globalShortcut, dialog, shell, firstRun });
 
   if (prefs.hotkey) globalShortcut.register(prefs.hotkey, win.toggleWindow);
 
