@@ -72,7 +72,7 @@ function renderGroups() {
   const tags = ['all', ...new Set(config.commands.flatMap(c => c.tags || []).filter(Boolean))];
   const el = document.getElementById('group-list');
   el.innerHTML = tags.map(t => `
-    <div class="group-item ${activeGroup === t ? 'active' : ''}" data-group="${escHtml(t)}">
+    <div class="group-item nav-item ${activeGroup === t ? 'active' : ''}" data-group="${escHtml(t)}">
       ${t === 'all' ? 'All Commands' : escHtml(t)}
     </div>
   `).join('');

@@ -78,3 +78,16 @@ test('applyReorder: does not mutate original array', () => {
   applyReorder(commands, ['b', 'a']);
   assert.deepEqual(commands, original);
 });
+
+let badgeFor;
+before(async () => {
+  ({ badgeFor } = await import('../src/renderer/utils.js'));
+});
+
+test('badgeFor: emits type- modifier class for each command type', () => {
+  for (const type of ['toggle', 'launcher', 'foreground', 'cheatsheet']) {
+    const html = badgeFor(type);
+    assert.ok(html.includes(`type-${type}`), `expected type-${type} in: ${html}`);
+    assert.ok(!html.includes(`badge-${type}`), `unexpected badge-${type} in: ${html}`);
+  }
+});

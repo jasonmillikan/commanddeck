@@ -12,7 +12,7 @@ Built as an open-source project, Electron lets us ship fast and validate the con
 
 - **Runtime:** Electron (v42)
 - **Frontend:** Vanilla JS, HTML, CSS (no framework — intentionally simple for now)
-- **Fonts:** JetBrains Mono (code/mono) + Syne (UI) — bundled WOFF2 in `src/renderer/fonts/` (no CDN)
+- **Fonts:** JetBrains Mono (code/mono) + Syne (headings) — bundled WOFF2 in `src/renderer/fonts/` (no CDN); `system-ui` for body/descriptive text (no bundle, set via `--font-body` CSS variable)
 - **Drag-to-reorder:** SortableJS (loaded from `node_modules` via `<script>` tag, no bundler)
 - **In-app terminal:** xterm.js v4 + xterm-addon-fit (loaded via `<script>` tags, no bundler); node-pty for PTY backend
 - **Config storage:** `~/.commanddeck/commands.json` (plain JSON, human-readable, git-friendly)
@@ -67,7 +67,7 @@ commanddeck/
 - **Accent colors (light/Paper):** `#15803d` (darkened green for WCAG contrast), `#0369a1` (blue-cyan), `#dc2626` (red), `#b45309` (amber-brown)
 - **Background layers (dark):** `--bg: #0c0e14`, `--bg2: #12151f`, `--bg3: #1a1e2e`
 - **Background layers (light/Paper):** `--bg: #fafaf7`, `--bg2: #f2f2ec`, `--bg3: #e8e8e0`
-- **Typography:** Syne 800 for headings, JetBrains Mono for commands/meta/code
+- **Typography:** Syne 700 for headings (`--font-ui`), JetBrains Mono for commands/meta/code (`--font-mono`), system-ui for notes/body/descriptive text (`--font-body`)
 - **Card anatomy:** top accent bar (green when running), label + note, command preview, meta (PID + timestamp), toggle/launch control, action buttons
 
 ## The Three Command Types

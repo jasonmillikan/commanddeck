@@ -151,9 +151,9 @@ export function closeHelpModal() {
 // ─── Internal ─────────────────────────────────────────────────────────────────
 function _renderNav() {
   const nav = document.getElementById('help-nav');
-  nav.innerHTML = '<div class="help-nav-label">SECTIONS</div>' +
+  nav.innerHTML = '<div class="help-nav-label section-label">SECTIONS</div>' +
     SECTIONS.map(s =>
-      `<div class="help-nav-item${s.id === _activeSection ? ' active' : ''}" data-section="${s.id}">${s.label}</div>`
+      `<div class="help-nav-item nav-item${s.id === _activeSection ? ' active' : ''}" data-section="${s.id}">${s.label}</div>`
     ).join('');
   nav.querySelectorAll('.help-nav-item').forEach(el => {
     el.addEventListener('click', () => {
@@ -180,10 +180,10 @@ function _overviewHtml() {
     <h3>What is CommandDeck?</h3>
     <p>CommandDeck lives in your system tray and gives you a visual board of terminal commands you run every day.
        No more hunting through shell history — just click to toggle, launch, or inspect.</p>
-    <div class="help-section-label">CARD TYPES AT A GLANCE</div>
+    <div class="help-section-label section-label">CARD TYPES AT A GLANCE</div>
     ${types.map(t => `
-      <div class="help-type-row">
-        <span class="help-type-badge ${t.type}">${t.type.toUpperCase()}</span>
+      <div class="help-type-row content-panel">
+        <span class="help-type-badge type-badge type-${t.type}">${t.type.toUpperCase()}</span>
         <div class="help-type-row-body"><h4>${t.name}</h4><p>${t.desc}</p></div>
       </div>
     `).join('')}
@@ -199,9 +199,9 @@ function _typeHtml(type) {
   return `
     <h3>${meta.title}</h3>
     <p>${meta.desc}</p>
-    ${starters.length ? `<div class="help-section-label">STARTER EXAMPLE</div>` : ''}
+    ${starters.length ? `<div class="help-section-label section-label">STARTER EXAMPLE</div>` : ''}
     ${starters.map(s => `
-      <div class="help-example">
+      <div class="help-example content-panel">
         <div class="help-example-header">
           <span class="help-example-label">${s.label}</span>
           ${!currentIds.has(s.id) ? `<button class="btn-recreate" data-id="${s.id}">RECREATE</button>` : ''}

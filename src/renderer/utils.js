@@ -38,9 +38,8 @@ export function escHtml(s) {
 }
 
 export function badgeFor(type) {
-  const map = { toggle: 'badge-toggle', launcher: 'badge-launcher', foreground: 'badge-foreground', cheatsheet: 'badge-cheatsheet' };
   const labels = { toggle: 'TOGGLE', launcher: 'LAUNCHER', foreground: 'FOREGROUND', cheatsheet: 'SHEET' };
-  return `<span class="card-type-badge ${map[type]}">${labels[type]}</span>`;
+  return `<span class="card-type-badge type-badge type-${type}">${labels[type]}</span>`;
 }
 
 export function keyEventToAccelerator(e) {
