@@ -326,19 +326,13 @@ body { font-family: var(--font-ui); font-size: 14px; display: flex; flex-directi
   text-overflow: ellipsis;
 }
 .card-type-badge {
-  font-family: var(--font-mono);
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 0.08em;
   padding: 2px 6px;
-  border-radius: 3px;
   flex-shrink: 0;
   margin-top: 2px;
 }
-.badge-toggle  { background: rgba(34, 211, 238, 0.12); color: var(--accent2); border: 1px solid rgba(34, 211, 238, 0.2); }
-.badge-launcher{ background: rgba(251, 191, 36, 0.12); color: var(--warn);    border: 1px solid rgba(251, 191, 36, 0.2); }
-.badge-foreground{ background: rgba(74, 222, 128, 0.12); color: var(--accent); border: 1px solid rgba(74, 222, 128, 0.2); }
-.badge-cheatsheet{ background: rgba(167,139,250,0.12); color: #a78bfa; border: 1px solid rgba(167,139,250,0.2); }
 
 .card-cmd {
   margin: 0 14px 10px;
@@ -920,15 +914,9 @@ body { font-family: var(--font-ui); font-size: 14px; display: flex; flex-directi
   font-size: 10px;
   font-weight: 700;
   padding: 3px 8px;
-  border-radius: 3px;
   white-space: nowrap;
   margin-top: 2px;
-  font-family: var(--font-mono);
 }
-.help-type-badge.toggle     { background: rgba(34,211,238,0.13);  color: var(--accent2); border: 1px solid rgba(34,211,238,0.2); }
-.help-type-badge.launcher   { background: rgba(251,191,36,0.13);  color: var(--warn);    border: 1px solid rgba(251,191,36,0.2); }
-.help-type-badge.foreground { background: rgba(74,222,128,0.13);  color: var(--accent);  border: 1px solid rgba(74,222,128,0.2); }
-.help-type-badge.cheatsheet { background: rgba(167,139,250,0.13); color: #a78bfa;        border: 1px solid rgba(167,139,250,0.27); }
 
 .help-type-row-body h4 { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
 .help-type-row-body p  { font-size: 12px; font-weight: 500; color: var(--text-dim); line-height: 1.55; margin: 0; }

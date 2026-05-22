@@ -183,7 +183,7 @@ function _overviewHtml() {
     <div class="help-section-label">CARD TYPES AT A GLANCE</div>
     ${types.map(t => `
       <div class="help-type-row">
-        <span class="help-type-badge ${t.type}">${t.type.toUpperCase()}</span>
+        <span class="help-type-badge type-badge type-${t.type}">${t.type.toUpperCase()}</span>
         <div class="help-type-row-body"><h4>${t.name}</h4><p>${t.desc}</p></div>
       </div>
     `).join('')}
