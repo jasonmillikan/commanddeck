@@ -894,10 +894,10 @@ body { font-family: var(--font-ui); font-size: 14px; display: flex; flex-directi
   margin-top: 1px;
   font-family: var(--font-mono);
 }
-.help-type-badge.toggle     { background: rgba(74,222,128,0.13);  color: #4ade80; border: 1px solid rgba(74,222,128,0.27); }
-.help-type-badge.launcher   { background: rgba(251,191,36,0.13);  color: #fbbf24; border: 1px solid rgba(251,191,36,0.27); }
-.help-type-badge.foreground { background: rgba(34,211,238,0.13);  color: #22d3ee; border: 1px solid rgba(34,211,238,0.27); }
-.help-type-badge.cheatsheet { background: rgba(167,139,250,0.13); color: #a78bfa; border: 1px solid rgba(167,139,250,0.27); }
+.help-type-badge.toggle     { background: rgba(34,211,238,0.13);  color: var(--accent2); border: 1px solid rgba(34,211,238,0.2); }
+.help-type-badge.launcher   { background: rgba(251,191,36,0.13);  color: var(--warn);    border: 1px solid rgba(251,191,36,0.2); }
+.help-type-badge.foreground { background: rgba(74,222,128,0.13);  color: var(--accent);  border: 1px solid rgba(74,222,128,0.2); }
+.help-type-badge.cheatsheet { background: rgba(167,139,250,0.13); color: #a78bfa;        border: 1px solid rgba(167,139,250,0.27); }
 
 .help-type-row-body h4 { font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 2px; }
 .help-type-row-body p  { font-size: 11px; color: var(--text-dim); line-height: 1.4; margin: 0; }
