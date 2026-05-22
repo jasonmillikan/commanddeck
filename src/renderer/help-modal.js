@@ -182,7 +182,7 @@ function _overviewHtml() {
        No more hunting through shell history — just click to toggle, launch, or inspect.</p>
     <div class="help-section-label">CARD TYPES AT A GLANCE</div>
     ${types.map(t => `
-      <div class="help-type-row">
+      <div class="help-type-row content-panel">
         <span class="help-type-badge type-badge type-${t.type}">${t.type.toUpperCase()}</span>
         <div class="help-type-row-body"><h4>${t.name}</h4><p>${t.desc}</p></div>
       </div>
@@ -201,7 +201,7 @@ function _typeHtml(type) {
     <p>${meta.desc}</p>
     ${starters.length ? `<div class="help-section-label">STARTER EXAMPLE</div>` : ''}
     ${starters.map(s => `
-      <div class="help-example">
+      <div class="help-example content-panel">
         <div class="help-example-header">
           <span class="help-example-label">${s.label}</span>
           ${!currentIds.has(s.id) ? `<button class="btn-recreate" data-id="${s.id}">RECREATE</button>` : ''}

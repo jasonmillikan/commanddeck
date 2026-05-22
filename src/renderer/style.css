@@ -901,9 +901,6 @@ body { font-family: var(--font-ui); font-size: 14px; display: flex; flex-directi
 }
 
 .help-type-row {
-  background: var(--bg);
-  border-radius: var(--radius);
-  border: 1px solid var(--border);
   padding: 13px 16px;
   display: flex;
   align-items: flex-start;
@@ -922,9 +919,6 @@ body { font-family: var(--font-ui); font-size: 14px; display: flex; flex-directi
 .help-type-row-body p  { font-size: 12px; font-weight: 500; color: var(--text-dim); line-height: 1.55; margin: 0; }
 
 .help-example {
-  background: var(--bg);
-  border-radius: var(--radius);
-  border: 1px solid var(--border);
   padding: 14px 16px;
   margin-bottom: 10px;
 }
