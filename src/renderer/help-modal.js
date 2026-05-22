@@ -19,8 +19,8 @@ const STARTER_DATA = {
     },
     {
       id: 'starter-linux-system-monitor', label: 'System Stats', type: 'foreground', tags: ['System'],
-      note: 'Streams CPU, memory, IO, and system stats every second. Part of procps — installed by default on most distros.',
-      onCmd: 'vmstat 1',
+      note: 'Streams CPU, memory, IO, and system stats every second. Part of procps — installed by default on most distros. -S M shows memory in MB for readable column widths.',
+      onCmd: 'vmstat -S M 1',
     },
     {
       id: 'starter-linux-network-toolkit', label: 'Network Toolkit', type: 'cheatsheet', tags: ['Network'],
