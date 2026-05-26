@@ -2,7 +2,13 @@
 
 A toggle board for terminal commands. Stop hunting through shell history — manage your daily commands with a click.
 
-![CommandDeck](https://img.shields.io/badge/platform-Linux-green) ![Electron](https://img.shields.io/badge/built%20with-Electron-blue) ![License](https://img.shields.io/badge/license-MIT-lightgrey)
+![CommandDeck](https://img.shields.io/badge/platform-Linux-green) ![Electron](https://img.shields.io/badge/built%20with-Electron-blue) ![License](https://img.shields.io/badge/license-GPL--3.0-blue)
+
+---
+
+![Help modal showing the CommandDeck welcome screen](assets/screenshot_help.jpg)
+
+![The CommandDeck main window showing a board of commands](assets/screenshot_deck.jpg)
 
 ---
 
@@ -33,11 +39,21 @@ Features:
 
 ---
 
-## Quick Start
+## Install
+
+Download the latest release from the [GitHub Releases](https://github.com/jasonmillikan/commanddeck/releases) page:
+
+- **`.deb`** — install with `sudo dpkg -i commanddeck_*.deb` (Ubuntu/Debian)
+- **AppImage** — mark executable and run: `chmod +x CommandDeck-*.AppImage && ./CommandDeck-*.AppImage`
+- **Windows installer** — run the `.exe`. Windows will show a SmartScreen warning because CommandDeck is not yet code-signed — click **More info → Run anyway**. The installer is built from source by GitHub Actions.
+
+---
+
+## Build from Source
 
 ### Prerequisites
 
-- **Ubuntu 22.04+** — development is intended for Ubuntu 22.04 or newer. Older distros (e.g. Ubuntu 20.04) ship GCC 9, which cannot compile the `node-pty` native module against Node.js 24 headers. Contributors on older systems will need to source a newer compiler themselves.
+- **Ubuntu 22.04+** — older distros (e.g. Ubuntu 20.04) ship GCC 9, which cannot compile the `node-pty` native module against Node.js 24 headers.
 
 - **Node.js** v18+ — install via [nvm](https://github.com/nvm-sh/nvm) or your package manager:
   ```bash
@@ -46,20 +62,16 @@ Features:
   sudo apt install -y nodejs
   ```
 
-### Install & Run
+### Run
 
 ```bash
-# 1. Clone or unzip the project
+git clone https://github.com/jasonmillikan/commanddeck.git
 cd commanddeck
-
-# 2. Install dependencies (just Electron)
 npm install
-
-# 3. Run it
 npm start
 ```
 
-That's it. The app window opens and an icon appears in your system tray.
+The app window opens and an icon appears in your system tray.
 
 ---
 
@@ -137,10 +149,7 @@ Open **Preferences** (⚙ in the titlebar) and enable **Launch at login**. Comma
 
 ## Roadmap (future ideas)
 
-- [x] Drag-to-reorder cards
-- [ ] Card tags as collapsible sections
-- [ ] `.deb` / AppImage packaging
-- [x] Dark/light theme (Paper)
+- [ ] Create a release for MacOS
 
 ---
 
@@ -158,15 +167,6 @@ git push && git push --tags   # pushes commit + tag, triggering the CI build
 Use `npm version patch` for bug fixes, `npm version minor` for new features, `npm version major` for breaking changes.
 
 GitHub Actions will build the Linux (AppImage + .deb) and Windows (installer) packages in parallel and publish them to the [GitHub Releases](https://github.com/jasonmillikan/commanddeck/releases) page automatically.
-
-### Windows SmartScreen Warning
-
-Windows will show a "Windows protected your PC" warning when running the installer, because CommandDeck is not yet code-signed. To proceed:
-
-1. Click **More info**
-2. Click **Run anyway**
-
-This is safe — the installer is built directly from source by GitHub Actions. Code signing will be added in a future release.
 
 ### Auto-updates
 
@@ -186,4 +186,4 @@ GitHub Sponsors is the easiest way to help — Ko-fi works too if you prefer.
 
 ## License
 
-MIT — do whatever you want with it.
+[GPL-3.0-or-later](LICENSE)
