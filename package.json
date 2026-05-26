@@ -8,7 +8,40 @@
     "dev": "electron . --dev",
     "test": "node --test test/*.test.js",
     "icon": "node scripts/export-icon.js",
-    "postinstall": "patch-package && electron-rebuild"
+    "postinstall": "patch-package && electron-rebuild",
+    "dist:linux": "electron-builder --linux",
+    "dist:win": "electron-builder --win"
+  },
+  "build": {
+    "appId": "io.github.jasonmillikan.commanddeck",
+    "productName": "CommandDeck",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "node_modules/**/*",
+      "package.json",
+      "patches/**/*"
+    ],
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "category": "Utility",
+      "icon": "assets/icons/512x512.png"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icons/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "jasonmillikan",
+      "repo": "commanddeck"
+    }
   },
   "keywords": [
     "electron",
@@ -21,6 +54,7 @@
   "license": "MIT",
   "devDependencies": {
     "electron": "^42.0.0",
+    "electron-builder": "^26.8.1",
     "electron-rebuild": "^3.2.9",
     "patch-package": "^8.0.1"
   },
