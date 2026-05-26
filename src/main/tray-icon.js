@@ -227,4 +227,9 @@ function buildAppIcon() {
   return nativeImage.createFromDataURL(_pngDataUrl(size, size, buf));
 }
 
-module.exports = { buildTrayIconSvg, buildTrayIcon, buildAppIcon };
+function buildRawIconPng(size) {
+  const rgba = buildIconRgba(2, null, 'linux', size);
+  return _rgbaToPng(size, size, rgba);
+}
+
+module.exports = { buildTrayIconSvg, buildTrayIcon, buildAppIcon, buildRawIconPng };
