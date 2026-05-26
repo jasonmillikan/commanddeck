@@ -39,6 +39,33 @@ app.whenReady().then(() => {
   // process-output) may be dropped if the renderer hasn't loaded yet — this is safe
   // because the renderer re-derives toggle state from getLiveProcesses() on boot.
   procMgr.restoreToggleState();
+
+  // Check for updates 10 seconds after launch (skip in dev — no packaged release to compare against)
+  if (app.isPackaged) {
+    const { autoUpdater } = require('electron-updater');
+    autoUpdater.on('update-available', (info) => {
+      dialog.showMessageBox(win.getMainWindow(), {
+        type: 'info',
+        title: 'Update Available',
+        message: `CommandDeck ${info.version} is available`,
+        detail: 'The update will download in the background.',
+        buttons: ['OK'],
+      });
+    });
+    autoUpdater.on('update-downloaded', (info) => {
+      dialog.showMessageBox(win.getMainWindow(), {
+        type: 'info',
+        title: 'Update Ready',
+        message: `CommandDeck ${info.version} is ready to install`,
+        buttons: ['Restart Now', 'Later'],
+        defaultId: 0,
+        cancelId: 1,
+      }).then(({ response }) => {
+        if (response === 0) autoUpdater.quitAndInstall();
+      });
+    });
+    setTimeout(() => autoUpdater.checkForUpdates(), 10000);
+  }
 });
 
 app.on('window-all-closed', (e) => {

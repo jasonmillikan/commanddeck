@@ -25,7 +25,10 @@
       "patches/**/*"
     ],
     "linux": {
-      "target": ["AppImage", "deb"],
+      "target": [
+        "AppImage",
+        "deb"
+      ],
       "category": "Utility",
       "icon": "assets/icons/512x512.png"
     },
@@ -59,6 +62,7 @@
     "patch-package": "^8.0.1"
   },
   "dependencies": {
+    "electron-updater": "^6.8.3",
     "node-pty": "^1.1.0",
     "sortablejs": "^1.15.7",
     "xterm": "^4.19.0",
