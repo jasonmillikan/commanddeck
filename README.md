@@ -144,6 +144,36 @@ Open **Preferences** (⚙ in the titlebar) and enable **Launch at login**. Comma
 
 ---
 
+## Releasing a New Version
+
+Releases are published automatically via GitHub Actions when a version tag is pushed.
+
+**Two-command release workflow:**
+
+```bash
+npm version minor        # bumps package.json (e.g. 0.1.0 → 0.2.0) and creates git tag v0.2.0
+git push && git push --tags   # pushes commit + tag, triggering the CI build
+```
+
+Use `npm version patch` for bug fixes, `npm version minor` for new features, `npm version major` for breaking changes.
+
+GitHub Actions will build the Linux (AppImage + .deb) and Windows (installer) packages in parallel and publish them to the [GitHub Releases](https://github.com/jasonmillikan/commanddeck/releases) page automatically.
+
+### Windows SmartScreen Warning
+
+Windows will show a "Windows protected your PC" warning when running the installer, because CommandDeck is not yet code-signed. To proceed:
+
+1. Click **More info**
+2. Click **Run anyway**
+
+This is safe — the installer is built directly from source by GitHub Actions. Code signing will be added in a future release.
+
+### Auto-updates
+
+The packaged app checks for new releases 10 seconds after launch. When an update is available, you'll see a dialog asking if you'd like to restart and install. The `.deb` package does not support auto-update — download the new `.deb` from the Releases page manually.
+
+---
+
 ## Support
 
 If CommandDeck saves you time or friction, a small sponsorship would be deeply appreciated.
