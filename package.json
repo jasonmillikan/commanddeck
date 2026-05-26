@@ -53,7 +53,11 @@
     "productivity",
     "linux"
   ],
-  "author": "Jason Millikan",
+  "homepage": "https://github.com/jasonmillikan/commanddeck",
+  "author": {
+    "name": "Jason Millikan",
+    "email": "jason.millikan@gmail.com"
+  },
   "license": "MIT",
   "devDependencies": {
     "electron": "^42.0.0",
