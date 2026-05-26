@@ -48,17 +48,6 @@ function ensureConfigDir({ configPath = CONFIG_PATH, logDir = LOG_DIR, statePath
   return { firstRun };
 }
 
-function detectTerminalApp() {
-  const dirs = (process.env.PATH || '').split(':');
-  const candidates = process.env.TERMINAL
-    ? [process.env.TERMINAL, 'kitty', 'alacritty', 'gnome-terminal', 'xfce4-terminal', 'konsole']
-    : ['kitty', 'alacritty', 'gnome-terminal', 'xfce4-terminal', 'konsole'];
-  for (const t of candidates) {
-    if (dirs.some(d => fs.existsSync(path.join(d, t)))) return t;
-  }
-  return null;
-}
-
 function autostartDesktopContent(app) {
   const execStr = app.isPackaged
     ? `"${process.execPath}"`
@@ -75,5 +64,5 @@ function autostartDesktopContent(app) {
 
 module.exports = {
   CONFIG_PATH, LOG_DIR, STATE_PATH, PREFS_PATH, AUTOSTART_PATH,
-  loadConfig, saveConfig, ensureConfigDir, detectTerminalApp, autostartDesktopContent,
+  loadConfig, saveConfig, ensureConfigDir, autostartDesktopContent,
 };

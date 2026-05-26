@@ -2,10 +2,11 @@ const path = require('path');
 const fs   = require('fs');
 const os   = require('os');
 const { validateConfig } = require('./validate-config');
+const platform = require('./platform');
 const activeTempFiles = new Set();
 
 function register(ipcMain, { procMgr, ptyMgr, win, cfgIo, globalShortcut, dialog, shell, firstRun = false }) {
-  const { CONFIG_PATH, LOG_DIR, AUTOSTART_PATH, loadConfig, saveConfig, autostartDesktopContent, detectTerminalApp } = cfgIo;
+  const { CONFIG_PATH, LOG_DIR, AUTOSTART_PATH, loadConfig, saveConfig, autostartDesktopContent } = cfgIo;
   const { spawn } = require('child_process');
   let _firstRun = firstRun;
 
@@ -28,16 +29,11 @@ function register(ipcMain, { procMgr, ptyMgr, win, cfgIo, globalShortcut, dialog
     return loadPrefs(PREFS_PATH);
   });
 
-  ipcMain.handle('get-autostart', () => fs.existsSync(AUTOSTART_PATH));
+  ipcMain.handle('get-autostart', () => platform.getAutostart(AUTOSTART_PATH));
 
   ipcMain.handle('set-autostart', (_, enabled) => {
-    if (enabled) {
-      const { app } = require('electron');
-      fs.mkdirSync(path.dirname(AUTOSTART_PATH), { recursive: true });
-      fs.writeFileSync(AUTOSTART_PATH, autostartDesktopContent(app));
-    } else if (fs.existsSync(AUTOSTART_PATH)) {
-      fs.unlinkSync(AUTOSTART_PATH);
-    }
+    const { app } = require('electron');
+    platform.setAutostart(enabled, AUTOSTART_PATH, autostartDesktopContent(app));
     return { ok: true };
   });
 
@@ -151,7 +147,7 @@ function register(ipcMain, { procMgr, ptyMgr, win, cfgIo, globalShortcut, dialog
       spawn('cmd', ['/K', `type "${tmpFile}"`], { detached: true, stdio: 'ignore' }).unref();
       return { ok: true };
     }
-    const terminal = detectTerminalApp();
+    const terminal = platform.detectTerminalApp();
     if (!terminal) return { ok: false, reason: 'no_terminal' };
     spawn(terminal, ['--', 'bash', '-c', 'cat "$1"; exec $SHELL', '--', tmpFile], { detached: true, stdio: 'ignore' }).unref();
     return { ok: true };
