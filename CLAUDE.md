@@ -38,7 +38,8 @@ commanddeck/
     ├── main/                   ← Electron main process (CommonJS)
     │   ├── main.js             ← entry point: lifecycle + boot wiring only (~50 lines)
     │   ├── preload.js          ← contextBridge API surface (secure Node↔renderer bridge)
-    │   ├── config-io.js        ← loadConfig, saveConfig, path constants, detectTerminalApp
+    │   ├── config-io.js        ← loadConfig, saveConfig, path constants
+    │   ├── platform.js         ← killProcessTree, spawnShell, getAutostart, setAutostart, detectTerminalApp (all OS-varying behavior)
     │   ├── window.js           ← createWindow, createTray, toggleWindow, updateTrayIcon
     │   ├── process-manager.js  ← spawnCommand, kill, toggle state, liveProcesses Map
     │   ├── pty-manager.js      ← ptyCreate, ptyWrite, ptyResize, killAllPty
@@ -152,43 +153,15 @@ Events from main → renderer via `ipcRenderer.on`:
 - `pty-data` → `{ commandId, data }` — PTY output chunk for a cheatsheet terminal session
 - `pty-exit` → `{ commandId, exitCode }` — PTY session ended (shell exited)
 
-## Known Gaps / Improvement Areas
-
-These were identified at the end of the prototype session — good starting points:
-
-1. ~~**Native file dialog**~~ — **Done.** Export uses `dialog.showSaveDialog` with a suggested default filename; import uses `dialog.showOpenDialog` + a `dialog.showMessageBox` confirmation. All file I/O and dialogs live in the main process. No `prompt()` or `alert()` calls remain in the renderer.
-
-2. ~~**Tray icon missing**~~ — **Done.** Stateful 2×2 grid of hexagon icons in `src/tray-icon.js`. Renders PNG pixel buffers at runtime (no static assets) with an embedded `sRGB` chunk so the icon color matches CSS-rendered `#4ade80` through the same color management pipeline. Reflects live process count (0–4 filled hexagons, diagonal fill order) and shows a red/amber badge dot on unexpected exits. Active toggles count toward the filled total.
-
-3. ~~**Toggle state persistence**~~ — **Done.** Per-toggle "Auto-restore on startup" checkbox (stored as `autoRestore: true` in commands.json). Auto-restore re-runs `onCmd` on startup; remember-only toggles show an amber "last session" indicator. State persisted in `~/.commanddeck/state.json` (app-managed, never exported).
-
-   **Follow-on:** A `checkCmd` field per toggle (e.g., `pactl list short modules | grep module-loopback`) would allow the app to verify real system state rather than relying on last-known memory. Skipped as out of scope for this iteration.
-
-4. ~~**Autostart `.desktop` file**~~ — **Done.** "Launch at login" toggle in the Preferences modal (⚙ button). Writes or removes `~/.config/autostart/commanddeck.desktop`. Works in both dev and packaged modes: in dev it points to the Electron binary in `node_modules` + the project directory; when packaged it points to the app executable directly.
-
-5. ~~**Desktop notifications**~~ — **Done.** Crash (non-zero exit) and unexpected clean-exit notifications via Electron's `Notification` API, each toggled independently in the Preferences modal.
-
-6. ~~**Drag-to-reorder cards**~~ — **Done.** Left-edge grip handle (⠿) on each card. SortableJS manages drag with `animation: 150`. Order persisted immediately to `commands.json`. Filtered-view drags work correctly — non-visible cards stay in place (`applyReorder` in `utils.js`). Tags replaced the single `group` field; old configs auto-migrate on first load.
-
-7. **Import/export UX** — use native file dialogs, add a "share board" export format.
-
-8. ~~**Keyboard shortcuts**~~ — **Done.** Global hotkey to show/hide the window, recorded interactively in the Preferences modal and registered via Electron's `globalShortcut`.
-
-9. **Packaging** — `.deb`, AppImage, or Snap for distribution. `electron-builder` is the standard tool.
-
-10. ~~**Cheatsheet terminal integration**~~ — **Done** (branch `feature/new-command-cheatsheet`). Three additions to cheatsheet cards:
-    - **DEL moved to modal** — Delete button removed from card surface for all card types; now lives in the Edit modal footer (`.btn-danger`, hidden until Edit opens).
-    - **OPEN button** — Launches user's system terminal emulator (`$TERMINAL` → PATH scan: kitty, alacritty, gnome-terminal, xfce4-terminal, konsole) displaying the cheatsheet content via `cat`, then hands off to an interactive shell. Content written to a secure temp file (`0o600`), cleaned up after 30 s.
-    - **TERM button** — Opens an embedded xterm.js terminal in the drawer. Each cheatsheet card gets its own persistent PTY session (node-pty, one per `commandId`). A snippet panel above the terminal shows each content line as a clickable chip that sends the command to the PTY. Writes are queued (`pendingWrites[]`) until the first `pty-data` event signals the shell is interactive, then flushed. PTY sessions survive drawer close/reopen; sessions are killed on app quit.
-
-    **Open issue:** When using OPEN (system terminal), the cheatsheet content is displayed as `cat` output before the interactive shell prompt. There is no mechanism to send keystrokes to the system terminal after launch, so individual lines cannot be run with a single click from OPEN. TERM (in-app) is the preferred workflow for interactive use.
 
 ## Developer Notes
 
 - **No build step** — this is intentionally plain JS/HTML/CSS. No webpack, no transpilation. `npm start` runs directly.
 - **Context isolation is ON** — never add `nodeIntegration: true`. All Node access goes through `preload.js` → `contextBridge`.
 - **In-memory live state** — `liveProcesses` Map in `process-manager.js` and `liveMap` object in `app.js` are not persisted. App restart clears them. This is fine for now (foreground processes die with the app anyway; launchers are detached and survive but lose tracking).
-- **Process kill behavior** — All spawned processes use `detached: true` so each becomes a process group leader. Kill signals use `process.kill(-pid, 'SIGTERM')` (negative PID) to reach the entire process group — this ensures bash's children (the actual command) receive the signal, not just the bash wrapper. On quit, only non-launcher processes are stopped; launcher processes intentionally keep running. Note: with `detached: true`, foreground processes are removed from Node's controlling terminal session, so Ctrl+C in the terminal (during `npm start` development) will not propagate to foreground child processes — use the app's KILL button or quit instead.
+- **`ELECTRON_RUN_AS_NODE` in VS Code** — VS Code's extension host sets `ELECTRON_RUN_AS_NODE=1` in its environment, which is inherited by all child processes including the integrated terminal. This silently puts Electron into plain Node.js mode: `process.type` is undefined, browser APIs are unavailable, and `require('electron')` returns the binary path string instead of the API. The `start` and `dev` scripts work around this with `env -u ELECTRON_RUN_AS_NODE electron .`. If you see `TypeError: Cannot read properties of undefined (reading 'whenReady')`, this is the cause — run from an external terminal or check that the env var is being unset.
+- **Platform abstraction** — `src/main/platform.js` centralizes all OS-varying behavior. Do not put platform checks (`process.platform === 'win32'`) directly in other main-process files — add a function to `platform.js` instead. Windows branches in `platform.js` use lazy `require('electron')` (inside the function body, not at the top of the file) so the module loads cleanly in plain Node.js during tests.
+- **Process kill behavior** — All spawned processes use `detached: true` so each becomes a process group leader. Kills are routed through `platform.killProcessTree(pid)` — on Linux this sends SIGTERM to the negative PID (process group), on Windows it uses `taskkill /T /F`. This ensures bash's children (the actual command) receive the signal, not just the bash wrapper. On quit, only non-launcher processes are stopped; launcher processes intentionally keep running. Note: with `detached: true`, foreground processes are removed from Node's controlling terminal session, so Ctrl+C in the terminal (during `npm start` development) will not propagate to foreground child processes — use the app's KILL button or quit instead.
 - **Log file per run** — each invocation of a command creates a new log file with timestamp in the name. Old logs are never cleaned up automatically (future: log rotation).
 - **node-pty native module** — uses Microsoft's `node-pty` (not `node-pty-prebuilt-multiarch`). It includes C++ source and is compiled by `electron-rebuild` on `npm install` (via `postinstall`). A `patch-package` patch in `patches/node-pty+1.1.0.patch` forces `-std=c++20` in `binding.gyp` — required because Electron 42 uses Node.js 24 headers which mandate C++20. Do not remove the patch or switch to `node-pty-prebuilt-multiarch`; the prebuilt package has no binary for Electron 42's ABI (v146) and its npm release omits the C++ source.
 - **PTY session lifecycle** — `ptyProcesses` Map in `pty-manager.js` holds one PTY per cheatsheet `commandId`. `pty-create` is idempotent (skips if already exists). `pty-exit` event deletes the map entry so the next open re-creates cleanly. All PTY processes are killed in the `will-quit` handler.
