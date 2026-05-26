@@ -153,36 +153,6 @@ Events from main → renderer via `ipcRenderer.on`:
 - `pty-data` → `{ commandId, data }` — PTY output chunk for a cheatsheet terminal session
 - `pty-exit` → `{ commandId, exitCode }` — PTY session ended (shell exited)
 
-## Known Gaps / Improvement Areas
-
-These were identified at the end of the prototype session — good starting points:
-
-1. ~~**Native file dialog**~~ — **Done.** Export uses `dialog.showSaveDialog` with a suggested default filename; import uses `dialog.showOpenDialog` + a `dialog.showMessageBox` confirmation. All file I/O and dialogs live in the main process. No `prompt()` or `alert()` calls remain in the renderer.
-
-2. ~~**Tray icon missing**~~ — **Done.** Stateful 2×2 grid of hexagon icons in `src/tray-icon.js`. Renders PNG pixel buffers at runtime (no static assets) with an embedded `sRGB` chunk so the icon color matches CSS-rendered `#4ade80` through the same color management pipeline. Reflects live process count (0–4 filled hexagons, diagonal fill order) and shows a red/amber badge dot on unexpected exits. Active toggles count toward the filled total.
-
-3. ~~**Toggle state persistence**~~ — **Done.** Per-toggle "Auto-restore on startup" checkbox (stored as `autoRestore: true` in commands.json). Auto-restore re-runs `onCmd` on startup; remember-only toggles show an amber "last session" indicator. State persisted in `~/.commanddeck/state.json` (app-managed, never exported).
-
-   **Follow-on:** A `checkCmd` field per toggle (e.g., `pactl list short modules | grep module-loopback`) would allow the app to verify real system state rather than relying on last-known memory. Skipped as out of scope for this iteration.
-
-4. ~~**Autostart `.desktop` file**~~ — **Done.** "Launch at login" toggle in the Preferences modal (⚙ button). Writes or removes `~/.config/autostart/commanddeck.desktop`. Works in both dev and packaged modes: in dev it points to the Electron binary in `node_modules` + the project directory; when packaged it points to the app executable directly.
-
-5. ~~**Desktop notifications**~~ — **Done.** Crash (non-zero exit) and unexpected clean-exit notifications via Electron's `Notification` API, each toggled independently in the Preferences modal.
-
-6. ~~**Drag-to-reorder cards**~~ — **Done.** Left-edge grip handle (⠿) on each card. SortableJS manages drag with `animation: 150`. Order persisted immediately to `commands.json`. Filtered-view drags work correctly — non-visible cards stay in place (`applyReorder` in `utils.js`). Tags replaced the single `group` field; old configs auto-migrate on first load.
-
-7. **Import/export UX** — use native file dialogs, add a "share board" export format.
-
-8. ~~**Keyboard shortcuts**~~ — **Done.** Global hotkey to show/hide the window, recorded interactively in the Preferences modal and registered via Electron's `globalShortcut`.
-
-9. ~~**Packaging**~~ — **Done.** AppImage + .deb (Linux) and NSIS installer (Windows) via `electron-builder`. GitHub Actions workflow in `.github/workflows/release.yml` builds both platforms in parallel on `v*` tags. `electron-updater` checks for new releases 10 s after packaged launch. Release workflow: `npm version minor && git push && git push --tags`.
-
-10. ~~**Cheatsheet terminal integration**~~ — **Done** (branch `feature/new-command-cheatsheet`). Three additions to cheatsheet cards:
-    - **DEL moved to modal** — Delete button removed from card surface for all card types; now lives in the Edit modal footer (`.btn-danger`, hidden until Edit opens).
-    - **OPEN button** — Launches user's system terminal emulator (`$TERMINAL` → PATH scan: kitty, alacritty, gnome-terminal, xfce4-terminal, konsole) displaying the cheatsheet content via `cat`, then hands off to an interactive shell. Content written to a secure temp file (`0o600`), cleaned up after 30 s.
-    - **TERM button** — Opens an embedded xterm.js terminal in the drawer. Each cheatsheet card gets its own persistent PTY session (node-pty, one per `commandId`). A snippet panel above the terminal shows each content line as a clickable chip that sends the command to the PTY. Writes are queued (`pendingWrites[]`) until the first `pty-data` event signals the shell is interactive, then flushed. PTY sessions survive drawer close/reopen; sessions are killed on app quit.
-
-    **Open issue:** When using OPEN (system terminal), the cheatsheet content is displayed as `cat` output before the interactive shell prompt. There is no mechanism to send keystrokes to the system terminal after launch, so individual lines cannot be run with a single click from OPEN. TERM (in-app) is the preferred workflow for interactive use.
 
 ## Developer Notes
 
