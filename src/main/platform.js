@@ -45,7 +45,7 @@ function detectTerminalApp() {
     if (dirs.some(d => fs.existsSync(path.join(d, 'wt.exe')))) return 'wt';
     return 'cmd';
   }
-  const dirs = (process.env.PATH || '').split(':');
+  const dirs = (process.env.PATH || '').split(path.delimiter);
   const candidates = process.env.TERMINAL
     ? [process.env.TERMINAL, 'kitty', 'alacritty', 'gnome-terminal', 'xfce4-terminal', 'konsole']
     : ['kitty', 'alacritty', 'gnome-terminal', 'xfce4-terminal', 'konsole'];
