@@ -58,7 +58,7 @@
     "name": "Jason Millikan",
     "email": "jasonmillikan@users.noreply.github.com"
   },
-  "license": "MIT",
+  "license": "GPL-3.0-or-later",
   "devDependencies": {
     "electron": "^42.0.0",
     "electron-builder": "^26.8.1",
