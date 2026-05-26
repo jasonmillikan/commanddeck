@@ -37,6 +37,8 @@ Features:
 
 ### Prerequisites
 
+- **Ubuntu 22.04+** — development is intended for Ubuntu 22.04 or newer. Older distros (e.g. Ubuntu 20.04) ship GCC 9, which cannot compile the `node-pty` native module against Node.js 24 headers. Contributors on older systems will need to source a newer compiler themselves.
+
 - **Node.js** v18+ — install via [nvm](https://github.com/nvm-sh/nvm) or your package manager:
   ```bash
   # Ubuntu/Debian
