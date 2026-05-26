@@ -1,9 +1,10 @@
-const { spawn, exec } = require('child_process');
+const { exec } = require('child_process');
 const path = require('path');
 const fs   = require('fs');
 const { Notification } = require('electron');
 const { loadState, saveState } = require('./state');
 const { loadConfig, LOG_DIR, STATE_PATH } = require('./config-io');
+const platform = require('./platform');
 
 // pid → { pid, commandId, label, startedAt, logFile, type, process? }
 const liveProcesses = new Map();
@@ -83,7 +84,7 @@ function spawnCommand(commandId, label, cmdString, type) {
   const logFile = path.join(LOG_DIR, `${commandId}-${ts}.log`);
   logLine(logFile, `Starting: ${cmdString}`);
 
-  const child = spawn('bash', ['-c', cmdString], {
+  const child = platform.spawnShell(cmdString, {
     detached: true,
     stdio: type === 'launcher' ? 'ignore' : ['ignore', 'pipe', 'pipe'],
   });
@@ -159,14 +160,14 @@ function runOneShot(cmdString, logFile) {
 function killAllProcesses() {
   for (const [pid, entry] of liveProcesses.entries()) {
     if (entry.type === 'launcher') continue;
-    try { process.kill(-pid, 'SIGTERM'); } catch {}
+    try { platform.killProcessTree(pid); } catch {}
   }
   liveProcesses.clear();
 }
 
 function killProcess(pid) {
   killedByUser.add(pid);
-  process.kill(-pid, 'SIGTERM');
+  platform.killProcessTree(pid);
   liveProcesses.delete(pid);
 }
 
