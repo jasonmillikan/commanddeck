@@ -6,9 +6,13 @@ A toggle board for terminal commands. Stop hunting through shell history — man
 
 ---
 
-![Help modal showing the CommandDeck welcome screen](assets/screenshot_help.jpg)
+![Help modal showing the CommandDeck welcome screen](assets/screenshot_help.png)
 
-![The CommandDeck main window showing a board of commands](assets/screenshot_deck.jpg)
+The CommandDeck main window showing a board of commands - dark theme:
+![The CommandDeck main window showing a board of commands - dark theme](assets/screenshot_deck_dark.png)
+
+Light theme:
+![The CommandDeck main window showing a board of commands - light theme](assets/screenshot_deck_light.png)
 
 ---
 
