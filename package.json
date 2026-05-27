@@ -43,7 +43,8 @@
     "publish": {
       "provider": "github",
       "owner": "jasonmillikan",
-      "repo": "commanddeck"
+      "repo": "commanddeck",
+      "releaseType": "release"
     }
   },
   "keywords": [
